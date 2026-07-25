@@ -35,15 +35,22 @@
 - Verified Gazebo Harmonic / Gazebo Sim `8.11.0`.
 - Verified communication from headless Gazebo to ROS2 by bridging `/clock`.
 
-### Gazebo GUI limitation
+### Gazebo GUI compatibility
 
-Gazebo's physics server and ROS2 bridge work correctly, but its 3D GUI is not stable with the Parallels `virgl` virtual GPU:
+The Gazebo physics server and ROS2 bridge work correctly. GUI testing identified a graphics compatibility issue with the Parallels `virgl` virtual GPU:
 
-- Ogre2 failed while compiling a pixel shader.
-- Ogre1 opened but the 3D viewport flickered under both Wayland and Xorg.
-- Mesa `llvmpipe` software rendering opened but was not responsive with the current virtual-machine resources.
+- The default Ogre2 renderer crashed while compiling a pixel shader.
+- The Ogre renderer could flicker or become unresponsive with its default graphics settings.
+- Mesa software rendering was not responsive with the current virtual-machine resources.
 
-The project will therefore run Gazebo Harmonic in headless server mode and use RViz2 as the primary visualization interface. This retains the planned ROS2 Jazzy and Gazebo Harmonic technical route.
+Stable interactive operation was verified using:
+
+- The Ogre renderer.
+- Shadows disabled in `worlds/empty_no_shadows.sdf`.
+- Mesa OpenGL 3.3 compatibility mode.
+- The repeatable launcher `scripts/run_gazebo_gui.sh`.
+
+Two consecutive interactive tests completed successfully, including simulation playback, camera movement, zooming and window resizing. Headless Gazebo remains available for automated tests.
 
 ## Next step
 

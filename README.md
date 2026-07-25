@@ -15,7 +15,7 @@
 - Build system: colcon
 - Dependency management: rosdep
 
-Gazebo Harmonic runs in headless server mode because its 3D GUI is unstable with the Parallels `virgl` virtual GPU. RViz2 is used as the primary visualization interface.
+Gazebo Harmonic GUI is launched with the Ogre renderer, shadows disabled in the project world, and Mesa OpenGL 3.3 compatibility mode to avoid rendering instability with the Parallels `virgl` virtual GPU. Use `scripts/run_gazebo_gui.sh` to start the verified configuration. Headless simulation remains available for automated tests.
 
 ## Progress
 
