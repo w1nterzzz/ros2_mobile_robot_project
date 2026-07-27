@@ -2,7 +2,7 @@
 
 基于 ROS2 Jazzy、Gazebo Harmonic 和 C++ 的移动机器人路径跟踪与多传感器状态估计仿真项目。
 
-项目目前已完成 ROS2核心通信系统、差速移动机器人模型、RViz可视化、Gazebo仿真接入、速度控制、轮式里程计和完整 TF链路。
+项目目前已完成 ROS2核心通信系统、差速移动机器人模型、RViz可视化、Gazebo仿真接入、轮式里程计、完整 TF链路和基础航点路径跟踪控制器。
 
 ## Development Environment
 
@@ -24,7 +24,7 @@
 - [x] Stage 2: ROS2 Jazzy and Gazebo Harmonic installation
 - [x] Stage 3: ROS2 core concepts
 - [x] Stage 4: Differential-drive robot model and Gazebo integration
-- [ ] Stage 5: Path tracking controller
+- [x] Stage 5: Path tracking controller
 - [ ] Stage 6: Multi-sensor state estimation
 - [ ] Stage 7: Safety, testing and engineering
 - [ ] Stage 8: Experiments and project presentation
@@ -64,6 +64,22 @@ ROS2核心概念示例与状态系统：
 - ROS–Gazebo topic bridge
 - 仿真时间统一
 - 自动模型回归测试
+
+### `mobile_robot_control`
+
+基础航点路径跟踪控制器：
+
+- C++17纯计算角度归一化
+- 二维位姿、航点和路径数据结构
+- 当前目标航点选择与终点判定
+- 距离和航向比例控制
+- 线速度与角速度限幅
+- 大航向误差下的平移抑制
+- `/odom` 订阅和 `/cmd_vel` 发布
+- `SENSOR_DATA` QoS里程计订阅
+- 里程计超时安全停止与恢复
+- YAML参数和 ROS2 launch
+- 自动单元测试和代码规范检查
 
 ## Robot TF Structure
 
@@ -146,6 +162,57 @@ ros2 launch mobile_robot_description simulation.launch.py
 - simulation-time configuration
 - delayed robot spawning
 
+## Run the Path Tracking Controller
+
+Gazebo GUI和统一仿真正常运行后，在第三个终端执行：
+
+```bash
+cd ~/ros2_mobile_robot_project
+source install/setup.bash
+
+ros2 launch mobile_robot_control path_tracking_controller.launch.py
+```
+
+默认测试路径为：
+
+```text
+(0.0, 0.0) → (1.0, 0.0) → (1.0, 1.0)
+```
+
+控制流程为：
+
+```text
+/odom
+  → 二维位姿提取
+  → 当前航点选择
+  → 距离和航向误差
+  → 比例控制
+  → 速度与航向限制
+  → /cmd_vel
+```
+
+主要参数位于：
+
+```text
+src/mobile_robot_control/config/path_tracking_controller.yaml
+```
+
+| Parameter | Default | Purpose |
+|---|---:|---|
+| `linear_gain` | `0.8` | 距离误差到线速度的比例增益 |
+| `angular_gain` | `2.0` | 航向误差到角速度的比例增益 |
+| `max_linear_velocity` | `0.4 m/s` | 最大前进速度 |
+| `max_angular_velocity` | `1.5 rad/s` | 最大旋转速度 |
+| `max_heading_error_for_translation` | `1.0 rad` | 超过该航向误差时停止平移 |
+| `waypoint_acceptance_radius` | `0.15 m` | 航点到达半径 |
+| `odometry_timeout` | `0.5 s` | 里程计中断后的安全停止阈值 |
+
+Gazebo bridge以 `SENSOR_DATA` QoS发布 `/odom`。控制器使用 `rclcpp::SensorDataQoS()` 订阅，以匹配 Best Effort可靠性策略。
+
+如果超过 `odometry_timeout` 没有收到新里程计，控制器会发布零速度；里程计恢复后继续跟踪。
+
+运行控制器时，不要同时使用命令行或其他节点发布 `/cmd_vel`。结束实验时，先停止控制器，再停止统一仿真，最后关闭 Gazebo。
+
 ## Run RViz
 
 仿真运行后，在新终端执行：
@@ -164,6 +231,8 @@ base_footprint
 ```
 
 ## Send Velocity Commands
+
+以下命令仅用于不运行路径跟踪控制器时的底盘测试。发送手动命令前，应确认 `/cmd_vel` 没有其他发布器。
 
 ### Move forward
 
@@ -222,6 +291,30 @@ Check the Gazebo model pose:
 gz model -m mobile_robot --pose
 ```
 
+## Stage 5 Path Tracking Evaluation
+
+Gazebo首次闭环实验使用默认参数和三航点直角路径：
+
+| Metric | Result |
+|---|---:|
+| Path | `(0,0) → (1,0) → (1,1)` |
+| Approximate completion time | `6.2 s` |
+| Final odometry position | `(1.013733, 0.858761) m` |
+| Final position error | `0.1419 m` |
+| Acceptance radius | `0.15 m` |
+| Final `/cmd_vel` | zero |
+| Final odometry velocity | zero |
+| Odometry timeout during run | no |
+
+最终误差计算为：
+
+```text
+sqrt((1.0 - 1.013733)^2 + (1.0 - 0.858761)^2)
+≈ 0.1419 m
+```
+
+该结果满足 `0.15 m` 航点到达半径。当前参数作为 Stage 5基础闭环基线保留，后续实验阶段可进一步比较不同增益、速度上限和路径形状。
+
 ## Test
 
 Run all workspace tests:
@@ -247,6 +340,22 @@ The robot-description regression tests verify:
 - wheel radius and wheel separation
 - command, odometry and TF topic names
 
+Stage 5 full-workspace baseline:
+
+```text
+4 packages finished
+111 tests, 0 errors, 0 failures, 12 skipped
+```
+
+The path-tracking tests verify:
+
+- angle normalization and wrap-around boundaries
+- pose, waypoint and path data structures
+- waypoint advancement and completion
+- invalid path and configuration handling
+- distance and heading control calculations
+- velocity limits and translation suppression
+
 ## Rendering Notes
 
 Gazebo Harmonic GUI is launched with the Ogre renderer, shadows disabled in the project world, and Mesa OpenGL 3.3 compatibility mode.
@@ -262,9 +371,10 @@ Headless Gazebo remains available for automated and non-visual tests.
 - The current model uses simplified wheel and caster contact properties.
 - Wheel slip can cause differences between Gazebo ground-truth pose and wheel odometry.
 - Gazebo may initially open with physics paused; click **Play** before sending motion commands.
-- The current system provides basic velocity control but does not yet include a path-tracking controller.
+- The current controller follows parameterized point waypoints; continuous-curve tracking and obstacle avoidance are not yet implemented.
+- The Stage 5 evaluation uses wheel odometry as the controller state and does not yet compare against an independent ground-truth pose.
 - Sensor simulation and multi-sensor state estimation will be added in later stages.
 
 ## Next Step
 
-Stage 5 will add the path-tracking control layer, including trajectory references, tracking-error calculation, velocity command generation and quantitative tracking evaluation.
+Stage 6 will add multi-sensor state estimation, including simulated sensor measurements, state-estimation models, coordinate-frame consistency, filter tuning and comparison with wheel odometry.
