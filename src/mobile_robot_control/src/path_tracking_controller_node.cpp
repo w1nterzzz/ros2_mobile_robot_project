@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 #include "geometry_msgs/msg/twist.hpp"
 #include "mobile_robot_control/control_law.hpp"
@@ -77,6 +78,15 @@ public:
       get_logger(),
       "Waypoint acceptance radius: %.3f m",
       waypoint_acceptance_radius_);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Loaded %zu waypoints: first=(%.3f, %.3f), final=(%.3f, %.3f)",
+      path_.size(),
+      path_.front().x,
+      path_.front().y,
+      path_.back().x,
+      path_.back().y);
   }
 
   ~PathTrackingControllerNode() override
@@ -103,6 +113,35 @@ private:
 
     waypoint_acceptance_radius_ =
       declare_parameter<double>("waypoint_acceptance_radius", 0.15);
+
+    const auto waypoint_values =
+      declare_parameter<std::vector<double>>(
+      "waypoints",
+      std::vector<double>{
+        0.0, 0.0,
+        1.0, 0.0,
+        1.0, 1.0,
+      });
+
+    if (waypoint_values.empty() || waypoint_values.size() % 2U != 0U) {
+      throw std::invalid_argument(
+              "waypoints must contain x, y coordinate pairs");
+    }
+
+    for (std::size_t index = 0U;
+      index < waypoint_values.size();
+      index += 2U)
+    {
+      const double x = waypoint_values[index];
+      const double y = waypoint_values[index + 1U];
+
+      if (!std::isfinite(x) || !std::isfinite(y)) {
+        throw std::invalid_argument(
+                "waypoint coordinates must be finite");
+      }
+
+      path_.push_back(Waypoint{x, y});
+    }
 
     constexpr double pi = 3.14159265358979323846;
 
@@ -173,6 +212,7 @@ private:
   ControllerGains gains_;
   CommandLimits limits_;
   double waypoint_acceptance_radius_{0.15};
+  Path path_;
 
   Pose2D current_pose_;
   bool has_odometry_{false};

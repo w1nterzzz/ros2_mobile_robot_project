@@ -10,4 +10,10 @@ path_tracking_controller:
     max_heading_error_for_translation: 1.0
 
     waypoint_acceptance_radius: 0.15
-
+    waypoints:
+      - 0.0
+      - 0.0
+      - 1.0
+      - 0.0
+      - 1.0
+      - 1.0
