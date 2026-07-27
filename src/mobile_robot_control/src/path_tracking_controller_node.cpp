@@ -82,6 +82,11 @@ public:
 
     RCLCPP_INFO(
       get_logger(),
+      "Odometry timeout: %.3f s",
+      odometry_timeout_);
+
+    RCLCPP_INFO(
+      get_logger(),
       "Loaded %zu waypoints: first=(%.3f, %.3f), final=(%.3f, %.3f)",
       path_.size(),
       path_.front().x,
@@ -114,6 +119,9 @@ private:
 
     waypoint_acceptance_radius_ =
       declare_parameter<double>("waypoint_acceptance_radius", 0.15);
+
+    odometry_timeout_ =
+      declare_parameter<double>("odometry_timeout", 0.5);
 
     const auto waypoint_values =
       declare_parameter<std::vector<double>>(
@@ -184,10 +192,27 @@ private:
       throw std::invalid_argument(
               "waypoint_acceptance_radius must be finite and positive");
     }
+
+    if (!std::isfinite(odometry_timeout_) ||
+      odometry_timeout_ <= 0.0)
+    {
+      throw std::invalid_argument(
+            "odometry_timeout must be finite and positive");
+    }
   }
 
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr message)
   {
+    last_odometry_time_ = std::chrono::steady_clock::now();
+
+    if (odometry_timed_out_) {
+      odometry_timed_out_ = false;
+
+      RCLCPP_INFO(
+        get_logger(),
+        "Odometry restored; resuming path tracking");
+    }
+
     current_pose_.x = message->pose.pose.position.x;
     current_pose_.y = message->pose.pose.position.y;
     current_pose_.yaw = tf2::getYaw(message->pose.pose.orientation);
@@ -211,6 +236,24 @@ private:
       return;
     }
 
+    const double odometry_age =
+      std::chrono::duration<double>(
+      std::chrono::steady_clock::now() -
+      last_odometry_time_).count();
+
+    if (odometry_age > odometry_timeout_) {
+      if (!odometry_timed_out_) {
+        odometry_timed_out_ = true;
+
+        RCLCPP_WARN(
+          get_logger(),
+          "Odometry timeout after %.3f s; publishing stop command",
+          odometry_age);
+      }
+
+      publish_stop_command();
+      return;
+    }
     const auto selection = select_target_waypoint(
       path_,
       current_pose_,
@@ -266,10 +309,13 @@ private:
   ControllerGains gains_;
   CommandLimits limits_;
   double waypoint_acceptance_radius_{0.15};
+  double odometry_timeout_{0.5};
   Path path_;
 
   Pose2D current_pose_;
   bool has_odometry_{false};
+  std::chrono::steady_clock::time_point last_odometry_time_;
+  bool odometry_timed_out_{false};
   std::size_t target_index_{0U};
   bool path_complete_{false};
 
