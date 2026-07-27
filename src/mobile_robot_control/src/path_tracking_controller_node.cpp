@@ -45,7 +45,7 @@ public:
     odom_subscription_ =
       create_subscription<nav_msgs::msg::Odometry>(
       "/odom",
-      10,
+      rclcpp::SensorDataQoS(),
       std::bind(
         &PathTrackingControllerNode::odom_callback,
         this,
