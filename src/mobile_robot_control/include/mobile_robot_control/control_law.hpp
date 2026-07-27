@@ -26,6 +26,13 @@ struct ControllerGains
   double angular{1.0};
 };
 
+struct CommandLimits
+{
+  double max_linear_velocity{0.5};
+  double max_angular_velocity{1.0};
+  double max_heading_error_for_translation{1.0};
+};
+
 struct ControlCommand
 {
   double linear_velocity{0.0};
@@ -38,6 +45,10 @@ ControlCommand compute_control_command(
   const Pose2D & pose,
   const Waypoint & target,
   const ControllerGains & gains);
+
+ControlCommand apply_command_limits(
+  const ControlCommand & command,
+  const CommandLimits & limits);
 
 }  // namespace mobile_robot_control
 

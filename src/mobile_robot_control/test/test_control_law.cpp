@@ -116,3 +116,79 @@ TEST(ControlLaw, RejectsInvalidGains)
       {1.0, std::numeric_limits<double>::infinity()}),
     std::invalid_argument);
 }
+TEST(CommandLimits, LeavesSafeCommandUnchanged)
+{
+  const mobile_robot_control::ControlCommand command{
+    0.2, -0.3, 0.4, -0.2};
+  const mobile_robot_control::CommandLimits limits{0.5, 1.0, 1.0};
+
+  const auto limited =
+    mobile_robot_control::apply_command_limits(command, limits);
+
+  EXPECT_NEAR(limited.linear_velocity, 0.2, kTolerance);
+  EXPECT_NEAR(limited.angular_velocity, -0.3, kTolerance);
+  EXPECT_NEAR(limited.distance_error, 0.4, kTolerance);
+  EXPECT_NEAR(limited.heading_error, -0.2, kTolerance);
+}
+
+TEST(CommandLimits, ClampsLinearAndAngularVelocities)
+{
+  const mobile_robot_control::ControlCommand command{
+    2.0, -3.0, 2.0, -0.4};
+  const mobile_robot_control::CommandLimits limits{0.5, 1.0, 1.0};
+
+  const auto limited =
+    mobile_robot_control::apply_command_limits(command, limits);
+
+  EXPECT_NEAR(limited.linear_velocity, 0.5, kTolerance);
+  EXPECT_NEAR(limited.angular_velocity, -1.0, kTolerance);
+}
+
+TEST(CommandLimits, RejectsNegativeLinearVelocity)
+{
+  const mobile_robot_control::ControlCommand command{
+    -0.4, 0.0, 1.0, 0.0};
+  const mobile_robot_control::CommandLimits limits{0.5, 1.0, 1.0};
+
+  const auto limited =
+    mobile_robot_control::apply_command_limits(command, limits);
+
+  EXPECT_NEAR(limited.linear_velocity, 0.0, kTolerance);
+  EXPECT_NEAR(limited.angular_velocity, 0.0, kTolerance);
+}
+
+TEST(CommandLimits, StopsTranslationForLargeHeadingError)
+{
+  const mobile_robot_control::ControlCommand command{
+    0.4, 1.5, 1.0, 1.2};
+  const mobile_robot_control::CommandLimits limits{0.5, 1.0, 1.0};
+
+  const auto limited =
+    mobile_robot_control::apply_command_limits(command, limits);
+
+  EXPECT_NEAR(limited.linear_velocity, 0.0, kTolerance);
+  EXPECT_NEAR(limited.angular_velocity, 1.0, kTolerance);
+  EXPECT_NEAR(limited.heading_error, 1.2, kTolerance);
+}
+
+TEST(CommandLimits, RejectsInvalidLimits)
+{
+  const mobile_robot_control::ControlCommand command{
+    0.2, 0.0, 1.0, 0.0};
+
+  EXPECT_THROW(
+    mobile_robot_control::apply_command_limits(
+      command, {-0.5, 1.0, 1.0}),
+    std::invalid_argument);
+
+  EXPECT_THROW(
+    mobile_robot_control::apply_command_limits(
+      command, {0.5, 1.0, kPi + 0.1}),
+    std::invalid_argument);
+
+  EXPECT_THROW(
+    mobile_robot_control::apply_command_limits(
+      command,
+      {0.5, std::numeric_limits<double>::infinity(), 1.0}),
+    std::invalid_argument);
+}
