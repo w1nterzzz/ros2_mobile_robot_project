@@ -17,8 +17,11 @@
 #include <memory>
 
 #include "geometry_msgs/msg/twist.hpp"
+#include "mobile_robot_control/path_types.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2/utils.hpp"
 
 namespace mobile_robot_control
 {
@@ -60,11 +63,20 @@ public:
 private:
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr message)
   {
-    (void)message;
+    current_pose_.x = message->pose.pose.position.x;
+    current_pose_.y = message->pose.pose.position.y;
+    current_pose_.yaw = tf2::getYaw(message->pose.pose.orientation);
 
-    RCLCPP_INFO_ONCE(
-      get_logger(),
-      "Received the first odometry message");
+    if (!has_odometry_) {
+      has_odometry_ = true;
+
+      RCLCPP_INFO(
+        get_logger(),
+        "Received first odometry: x=%.3f m, y=%.3f m, yaw=%.3f rad",
+        current_pose_.x,
+        current_pose_.y,
+        current_pose_.yaw);
+    }
   }
 
   void publish_stop_command()
@@ -72,6 +84,9 @@ private:
     geometry_msgs::msg::Twist stop_command;
     cmd_vel_publisher_->publish(stop_command);
   }
+
+  Pose2D current_pose_;
+  bool has_odometry_{false};
 
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr
     cmd_vel_publisher_;

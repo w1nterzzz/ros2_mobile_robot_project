@@ -9,6 +9,8 @@ find_package(ament_cmake REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 add_library(angle_utils
   src/angle_utils.cpp
@@ -44,10 +46,17 @@ add_executable(path_tracking_controller
 
 target_compile_features(path_tracking_controller PUBLIC cxx_std_17)
 
+target_include_directories(path_tracking_controller
+  PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
 ament_target_dependencies(path_tracking_controller
   geometry_msgs
   nav_msgs
   rclcpp
+  tf2
+  tf2_geometry_msgs
 )
 
 install(
