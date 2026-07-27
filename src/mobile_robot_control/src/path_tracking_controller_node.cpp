@@ -22,6 +22,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "mobile_robot_control/control_law.hpp"
 #include "mobile_robot_control/path_types.hpp"
+#include "mobile_robot_control/waypoint_selector.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
@@ -50,15 +51,15 @@ public:
         this,
         std::placeholders::_1));
 
-    stop_timer_ = create_wall_timer(
+    control_timer_ = create_wall_timer(
       std::chrono::milliseconds(200),
       std::bind(
-        &PathTrackingControllerNode::publish_stop_command,
+        &PathTrackingControllerNode::control_timer_callback,
         this));
 
     RCLCPP_INFO(
       get_logger(),
-      "Path tracking controller started in safe-stop mode");
+      "Path tracking controller started; waiting for odometry");
 
     RCLCPP_INFO(
       get_logger(),
@@ -203,6 +204,59 @@ private:
     }
   }
 
+  void control_timer_callback()
+  {
+    if (!has_odometry_ || path_complete_) {
+      publish_stop_command();
+      return;
+    }
+
+    const auto selection = select_target_waypoint(
+      path_,
+      current_pose_,
+      target_index_,
+      waypoint_acceptance_radius_);
+
+    if (selection.target_index != target_index_) {
+      target_index_ = selection.target_index;
+
+      RCLCPP_INFO(
+        get_logger(),
+        "Advanced to waypoint %zu at (%.3f, %.3f)",
+        target_index_,
+        path_[target_index_].x,
+        path_[target_index_].y);
+    }
+
+    if (selection.path_complete) {
+      path_complete_ = true;
+      publish_stop_command();
+
+      RCLCPP_INFO(
+        get_logger(),
+        "Final waypoint reached; publishing stop command");
+      return;
+    }
+
+    const auto raw_command = compute_control_command(
+      current_pose_,
+      path_[target_index_],
+      gains_);
+
+    const auto limited_command =
+      apply_command_limits(raw_command, limits_);
+
+    publish_control_command(limited_command);
+  }
+
+  void publish_control_command(const ControlCommand & command)
+  {
+    geometry_msgs::msg::Twist message;
+    message.linear.x = command.linear_velocity;
+    message.angular.z = command.angular_velocity;
+    cmd_vel_publisher_->publish(message);
+  }
+
   void publish_stop_command()
   {
     geometry_msgs::msg::Twist stop_command;
@@ -216,7 +270,8 @@ private:
 
   Pose2D current_pose_;
   bool has_odometry_{false};
-
+  std::size_t target_index_{0U};
+  bool path_complete_{false};
 
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr
     cmd_vel_publisher_;
@@ -224,7 +279,7 @@ private:
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr
     odom_subscription_;
 
-  rclcpp::TimerBase::SharedPtr stop_timer_;
+  rclcpp::TimerBase::SharedPtr control_timer_;
 };
 
 }  // namespace mobile_robot_control
