@@ -51,6 +51,10 @@ target_include_directories(path_tracking_controller
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
+target_link_libraries(path_tracking_controller
+  control_law
+)
+
 ament_target_dependencies(path_tracking_controller
   geometry_msgs
   nav_msgs
@@ -76,6 +80,11 @@ install(
 install(
   DIRECTORY include/
   DESTINATION include
+)
+
+install(
+  DIRECTORY config launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

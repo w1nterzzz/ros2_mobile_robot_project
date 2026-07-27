@@ -13,10 +13,13 @@
 // limitations under the License.
 
 #include <chrono>
+#include <cmath>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 
 #include "geometry_msgs/msg/twist.hpp"
+#include "mobile_robot_control/control_law.hpp"
 #include "mobile_robot_control/path_types.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -32,6 +35,8 @@ public:
   PathTrackingControllerNode()
   : Node("path_tracking_controller")
   {
+    declare_and_validate_parameters();
+
     cmd_vel_publisher_ =
       create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 
@@ -53,6 +58,25 @@ public:
     RCLCPP_INFO(
       get_logger(),
       "Path tracking controller started in safe-stop mode");
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Gains: linear=%.3f, angular=%.3f",
+      gains_.linear,
+      gains_.angular);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Limits: linear=%.3f m/s, angular=%.3f rad/s, "
+      "translation heading threshold=%.3f rad",
+      limits_.max_linear_velocity,
+      limits_.max_angular_velocity,
+      limits_.max_heading_error_for_translation);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Waypoint acceptance radius: %.3f m",
+      waypoint_acceptance_radius_);
   }
 
   ~PathTrackingControllerNode() override
@@ -61,6 +85,67 @@ public:
   }
 
 private:
+  void declare_and_validate_parameters()
+  {
+    gains_.linear =
+      declare_parameter<double>("linear_gain", 0.8);
+    gains_.angular =
+      declare_parameter<double>("angular_gain", 2.0);
+
+    limits_.max_linear_velocity =
+      declare_parameter<double>("max_linear_velocity", 0.4);
+    limits_.max_angular_velocity =
+      declare_parameter<double>("max_angular_velocity", 1.5);
+    limits_.max_heading_error_for_translation =
+      declare_parameter<double>(
+      "max_heading_error_for_translation",
+      1.0);
+
+    waypoint_acceptance_radius_ =
+      declare_parameter<double>("waypoint_acceptance_radius", 0.15);
+
+    constexpr double pi = 3.14159265358979323846;
+
+    if (!std::isfinite(gains_.linear) || gains_.linear < 0.0) {
+      throw std::invalid_argument(
+              "linear_gain must be finite and non-negative");
+    }
+
+    if (!std::isfinite(gains_.angular) || gains_.angular < 0.0) {
+      throw std::invalid_argument(
+              "angular_gain must be finite and non-negative");
+    }
+
+    if (!std::isfinite(limits_.max_linear_velocity) ||
+      limits_.max_linear_velocity < 0.0)
+    {
+      throw std::invalid_argument(
+              "max_linear_velocity must be finite and non-negative");
+    }
+
+    if (!std::isfinite(limits_.max_angular_velocity) ||
+      limits_.max_angular_velocity < 0.0)
+    {
+      throw std::invalid_argument(
+              "max_angular_velocity must be finite and non-negative");
+    }
+
+    if (!std::isfinite(limits_.max_heading_error_for_translation) ||
+      limits_.max_heading_error_for_translation < 0.0 ||
+      limits_.max_heading_error_for_translation > pi)
+    {
+      throw std::invalid_argument(
+              "max_heading_error_for_translation must be in [0, pi]");
+    }
+
+    if (!std::isfinite(waypoint_acceptance_radius_) ||
+      waypoint_acceptance_radius_ <= 0.0)
+    {
+      throw std::invalid_argument(
+              "waypoint_acceptance_radius must be finite and positive");
+    }
+  }
+
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr message)
   {
     current_pose_.x = message->pose.pose.position.x;
@@ -85,8 +170,13 @@ private:
     cmd_vel_publisher_->publish(stop_command);
   }
 
+  ControllerGains gains_;
+  CommandLimits limits_;
+  double waypoint_acceptance_radius_{0.15};
+
   Pose2D current_pose_;
   bool has_odometry_{false};
+
 
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr
     cmd_vel_publisher_;
