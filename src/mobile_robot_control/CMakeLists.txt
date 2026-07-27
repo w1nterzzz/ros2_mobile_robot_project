@@ -38,6 +38,18 @@ target_link_libraries(control_law
   PUBLIC angle_utils
 )
 
+add_executable(path_tracking_controller
+  src/path_tracking_controller_node.cpp
+)
+
+target_compile_features(path_tracking_controller PUBLIC cxx_std_17)
+
+ament_target_dependencies(path_tracking_controller
+  geometry_msgs
+  nav_msgs
+  rclcpp
+)
+
 install(
   TARGETS angle_utils control_law
   EXPORT export_${PROJECT_NAME}
@@ -45,6 +57,11 @@ install(
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
   INCLUDES DESTINATION include
+)
+
+install(
+  TARGETS path_tracking_controller
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
