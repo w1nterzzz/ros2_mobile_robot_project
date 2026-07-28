@@ -182,6 +182,50 @@ def test_base_link_has_imu_sensor(robot):
     )
 
 
+@pytest.mark.parametrize(
+    (
+        'measurement_name',
+        'expected_stddev',
+        'expected_bias_mean',
+        'expected_bias_stddev',
+    ),
+    [
+        ('angular_velocity', 2.0e-4, 7.5e-6, 8.0e-7),
+        ('linear_acceleration', 1.7e-2, 0.1, 1.0e-3),
+    ],
+)
+def test_imu_noise_is_configured(
+    robot,
+    measurement_name,
+    expected_stddev,
+    expected_bias_mean,
+    expected_bias_stddev,
+):
+    imu_sensor = robot.find(
+        './gazebo[@reference="base_link"]'
+        '/sensor[@name="imu_sensor"]'
+    )
+    assert imu_sensor is not None
+
+    for axis in ('x', 'y', 'z'):
+        noise = imu_sensor.find(
+            f'imu/{measurement_name}/{axis}/noise'
+        )
+
+        assert noise is not None
+        assert noise.attrib['type'] == 'gaussian'
+        assert float(noise.findtext('mean')) == pytest.approx(0.0)
+        assert float(
+            noise.findtext('stddev')
+        ) == pytest.approx(expected_stddev)
+        assert float(
+            noise.findtext('bias_mean')
+        ) == pytest.approx(expected_bias_mean)
+        assert float(
+            noise.findtext('bias_stddev')
+        ) == pytest.approx(expected_bias_stddev)
+
+
 def test_gazebo_plugins_are_configured(robot):
     joint_state_plugin = robot.find(
         './gazebo/plugin'
