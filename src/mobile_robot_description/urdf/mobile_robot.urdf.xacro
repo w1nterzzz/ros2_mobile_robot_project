@@ -151,7 +151,14 @@
     <child link="caster_link"/>
     <origin xyz="${caster_x} 0 ${caster_radius}" rpy="0 0 0"/>
   </joint>
-
+  <gazebo reference="base_link">
+  <sensor name="imu_sensor" type="imu">
+    <always_on>true</always_on>
+    <update_rate>100</update_rate>
+    <visualize>false</visualize>
+    <topic>/model/mobile_robot/imu</topic>
+  </sensor>
+</gazebo>
   <gazebo>
     <plugin
       filename="gz-sim-joint-state-publisher-system"

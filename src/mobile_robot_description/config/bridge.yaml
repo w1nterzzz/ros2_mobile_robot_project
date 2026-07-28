@@ -4,6 +4,14 @@
   gz_type_name: "gz.msgs.Model"
   direction: GZ_TO_ROS
 
+- ros_topic_name: "/imu/data"
+  gz_topic_name: "/model/mobile_robot/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+  qos_profile: SENSOR_DATA
+  frame_id: "base_link"
+
 - ros_topic_name: "/cmd_vel"
   gz_topic_name: "/model/mobile_robot/cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
