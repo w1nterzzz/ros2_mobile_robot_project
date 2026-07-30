@@ -15,9 +15,12 @@
 #include <functional>
 #include <memory>
 
+#include "mobile_robot_localization/planar_estimator.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2/utils.hpp"
 
 namespace mobile_robot_localization
 {
@@ -52,8 +55,32 @@ public:
 
 private:
   void wheel_odom_callback(
-    const nav_msgs::msg::Odometry::SharedPtr)
+    const nav_msgs::msg::Odometry::SharedPtr message)
   {
+    if (estimator_.is_initialized()) {
+      return;
+    }
+
+    const double x = message->pose.pose.position.x;
+    const double y = message->pose.pose.position.y;
+    const double yaw =
+      tf2::getYaw(message->pose.pose.orientation);
+
+    estimator_.initialize(x, y, yaw);
+
+    if (!estimator_.is_initialized()) {
+      return;
+    }
+
+    const auto & state = estimator_.state();
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Estimator initialized: x=%.3f m, y=%.3f m, "
+      "yaw=%.3f rad",
+      state.x,
+      state.y,
+      state.yaw);
   }
   void imu_callback(
     const sensor_msgs::msg::Imu::SharedPtr message)
@@ -75,6 +102,8 @@ private:
     imu_subscription_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr
     wheel_odom_subscription_;
+
+  PlanarEstimator estimator_;
 
   double latest_imu_yaw_rate_{0.0};
   double latest_imu_yaw_rate_variance_{0.0};

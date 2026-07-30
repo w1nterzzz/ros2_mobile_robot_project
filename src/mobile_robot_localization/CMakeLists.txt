@@ -10,6 +10,8 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -20,10 +22,17 @@ add_executable(state_estimator
 
 target_compile_features(state_estimator PUBLIC cxx_std_17)
 
+target_include_directories(state_estimator
+  PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
 ament_target_dependencies(state_estimator
   nav_msgs
   rclcpp
   sensor_msgs
+  tf2
+  tf2_geometry_msgs
 )
 
 install(
