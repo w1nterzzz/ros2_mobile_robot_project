@@ -15,6 +15,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
+#include <string>
 
 #include "mobile_robot_localization/planar_estimator.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -34,12 +35,23 @@ public:
   StateEstimatorNode()
   : Node("state_estimator")
   {
+    imu_topic_ = declare_parameter<std::string>(
+      "imu_topic", "/imu/data");
+    wheel_odom_topic_ = declare_parameter<std::string>(
+      "wheel_odom_topic", "/wheel/odom");
+    odom_topic_ = declare_parameter<std::string>(
+      "odom_topic", "/odom");
+    odom_frame_ = declare_parameter<std::string>(
+      "odom_frame", "odom");
+    base_frame_ = declare_parameter<std::string>(
+      "base_frame", "base_footprint");
+
     tf_broadcaster_ =
       std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
     imu_subscription_ =
       create_subscription<sensor_msgs::msg::Imu>(
-      "/imu/data",
+      imu_topic_,
       rclcpp::SensorDataQoS(),
       std::bind(
         &StateEstimatorNode::imu_callback,
@@ -48,7 +60,7 @@ public:
 
     wheel_odom_subscription_ =
       create_subscription<nav_msgs::msg::Odometry>(
-      "/wheel/odom",
+      wheel_odom_topic_,
       rclcpp::SensorDataQoS(),
       std::bind(
         &StateEstimatorNode::wheel_odom_callback,
@@ -57,7 +69,7 @@ public:
 
     odom_publisher_ =
       create_publisher<nav_msgs::msg::Odometry>(
-      "/odom",
+      odom_topic_,
       rclcpp::QoS(10));
 
     RCLCPP_INFO(
@@ -73,8 +85,8 @@ private:
 
     geometry_msgs::msg::TransformStamped transform;
     transform.header.stamp = stamp;
-    transform.header.frame_id = "odom";
-    transform.child_frame_id = "base_footprint";
+    transform.header.frame_id = odom_frame_;
+    transform.child_frame_id = base_frame_;
 
     transform.transform.translation.x = state.x;
     transform.transform.translation.y = state.y;
@@ -93,8 +105,8 @@ private:
 
     nav_msgs::msg::Odometry odom_message;
     odom_message.header.stamp = stamp;
-    odom_message.header.frame_id = "odom";
-    odom_message.child_frame_id = "base_footprint";
+    odom_message.header.frame_id = odom_frame_;
+    odom_message.child_frame_id = base_frame_;
 
     odom_message.pose.pose.position.x = state.x;
     odom_message.pose.pose.position.y = state.y;
@@ -222,6 +234,11 @@ private:
     odom_publisher_;
   std::unique_ptr<tf2_ros::TransformBroadcaster>
   tf_broadcaster_;
+  std::string imu_topic_;
+  std::string wheel_odom_topic_;
+  std::string odom_topic_;
+  std::string odom_frame_;
+  std::string base_frame_;
   PlanarEstimator estimator_;
   rclcpp::Time last_wheel_odom_stamp_{
     0,
