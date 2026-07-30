@@ -101,10 +101,41 @@ private:
 
     last_wheel_odom_stamp_ = current_stamp;
 
+    if (!has_imu_measurement_) {
+      RCLCPP_WARN_ONCE(
+        get_logger(),
+        "Waiting for the first IMU measurement");
+      return;
+    }
+
+    const double wheel_linear_velocity =
+      message->twist.twist.linear.x;
+    const double wheel_yaw_rate =
+      message->twist.twist.angular.z;
+    const double wheel_yaw_rate_variance =
+      message->twist.covariance[35];
+
+    estimator_.update(
+      wheel_linear_velocity,
+      wheel_yaw_rate,
+      wheel_yaw_rate_variance,
+      latest_imu_yaw_rate_,
+      latest_imu_yaw_rate_variance_,
+      dt);
+
+    const auto & state = estimator_.state();
+
     RCLCPP_INFO_ONCE(
       get_logger(),
-      "First valid wheel odometry time step: dt=%.6f s",
-      dt);
+      "First fused update: dt=%.6f s, x=%.3f m, "
+      "y=%.3f m, yaw=%.3f rad, v=%.3f m/s, "
+      "yaw_rate=%.3f rad/s",
+      dt,
+      state.x,
+      state.y,
+      state.yaw,
+      state.v,
+      state.yaw_rate);
   }
   void imu_callback(
     const sensor_msgs::msg::Imu::SharedPtr message)
