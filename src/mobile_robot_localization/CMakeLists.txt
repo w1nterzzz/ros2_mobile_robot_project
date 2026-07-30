@@ -7,9 +7,25 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+add_executable(state_estimator
+  src/state_estimator_node.cpp
+)
+
+target_compile_features(state_estimator PUBLIC cxx_std_17)
+
+ament_target_dependencies(state_estimator
+  rclcpp
+)
+
+install(
+  TARGETS state_estimator
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 install(
   DIRECTORY include/
