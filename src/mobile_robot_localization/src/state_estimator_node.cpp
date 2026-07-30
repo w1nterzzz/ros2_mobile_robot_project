@@ -56,13 +56,29 @@ private:
   {
   }
   void imu_callback(
-    const sensor_msgs::msg::Imu::SharedPtr)
+    const sensor_msgs::msg::Imu::SharedPtr message)
   {
+    latest_imu_yaw_rate_ =
+      message->angular_velocity.z;
+    latest_imu_yaw_rate_variance_ =
+      message->angular_velocity_covariance[8];
+    has_imu_measurement_ = true;
+
+    RCLCPP_INFO_ONCE(
+      get_logger(),
+      "First IMU measurement: yaw_rate=%.6f rad/s, "
+      "variance=%.6g",
+      latest_imu_yaw_rate_,
+      latest_imu_yaw_rate_variance_);
   }
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr
     imu_subscription_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr
     wheel_odom_subscription_;
+
+  double latest_imu_yaw_rate_{0.0};
+  double latest_imu_yaw_rate_variance_{0.0};
+  bool has_imu_measurement_{false};
 };
 
 }  // namespace mobile_robot_localization
