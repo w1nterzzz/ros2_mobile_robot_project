@@ -16,6 +16,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <stdexcept>
 
 #include "mobile_robot_localization/planar_estimator.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -45,6 +46,17 @@ public:
       "odom_frame", "odom");
     base_frame_ = declare_parameter<std::string>(
       "base_frame", "base_footprint");
+
+    max_time_step_ = declare_parameter<double>(
+      "max_time_step", 1.0);
+
+    if (
+      !std::isfinite(max_time_step_) ||
+      max_time_step_ <= 0.0)
+    {
+      throw std::invalid_argument(
+              "max_time_step must be finite and positive");
+    }
 
     tf_broadcaster_ =
       std::make_unique<tf2_ros::TransformBroadcaster>(*this);
@@ -126,7 +138,6 @@ private:
 
     odom_publisher_->publish(odom_message);
   }
-
   void wheel_odom_callback(
     const nav_msgs::msg::Odometry::SharedPtr message)
   {
@@ -248,6 +259,7 @@ private:
   double latest_imu_yaw_rate_{0.0};
   double latest_imu_yaw_rate_variance_{0.0};
   bool has_imu_measurement_{false};
+  double max_time_step_{1.0};
 };
 
 }  // namespace mobile_robot_localization
