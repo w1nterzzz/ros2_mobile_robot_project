@@ -29,6 +29,13 @@ if(BUILD_TESTING)
     include
   )
 
+  ament_add_gtest(test_angle_utils
+    test/test_angle_utils.cpp
+  )
+  target_include_directories(test_angle_utils PRIVATE
+    include
+  )
+
   ament_lint_auto_find_test_dependencies()
 endif()
 
