@@ -54,33 +54,57 @@ public:
   }
 
 private:
+  static constexpr double kMaxTimeStep{1.0};
+
   void wheel_odom_callback(
     const nav_msgs::msg::Odometry::SharedPtr message)
   {
-    if (estimator_.is_initialized()) {
-      return;
-    }
-
-    const double x = message->pose.pose.position.x;
-    const double y = message->pose.pose.position.y;
-    const double yaw =
-      tf2::getYaw(message->pose.pose.orientation);
-
-    estimator_.initialize(x, y, yaw);
+    const rclcpp::Time current_stamp(message->header.stamp);
 
     if (!estimator_.is_initialized()) {
+      const double x = message->pose.pose.position.x;
+      const double y = message->pose.pose.position.y;
+      const double yaw =
+        tf2::getYaw(message->pose.pose.orientation);
+
+      estimator_.initialize(x, y, yaw);
+
+      if (!estimator_.is_initialized()) {
+        return;
+      }
+
+      last_wheel_odom_stamp_ = current_stamp;
+
+      const auto & state = estimator_.state();
+
+      RCLCPP_INFO(
+        get_logger(),
+        "Estimator initialized: x=%.3f m, y=%.3f m, "
+        "yaw=%.3f rad",
+        state.x,
+        state.y,
+        state.yaw);
+
       return;
     }
 
-    const auto & state = estimator_.state();
+    const double dt =
+      (current_stamp - last_wheel_odom_stamp_).seconds();
 
-    RCLCPP_INFO(
+    if (dt <= 0.0 || dt > kMaxTimeStep) {
+      RCLCPP_WARN(
+        get_logger(),
+        "Rejected wheel odometry timestamp: dt=%.6f s",
+        dt);
+      return;
+    }
+
+    last_wheel_odom_stamp_ = current_stamp;
+
+    RCLCPP_INFO_ONCE(
       get_logger(),
-      "Estimator initialized: x=%.3f m, y=%.3f m, "
-      "yaw=%.3f rad",
-      state.x,
-      state.y,
-      state.yaw);
+      "First valid wheel odometry time step: dt=%.6f s",
+      dt);
   }
   void imu_callback(
     const sensor_msgs::msg::Imu::SharedPtr message)
@@ -104,6 +128,10 @@ private:
     wheel_odom_subscription_;
 
   PlanarEstimator estimator_;
+  rclcpp::Time last_wheel_odom_stamp_{
+    0,
+    0,
+    RCL_ROS_TIME};
 
   double latest_imu_yaw_rate_{0.0};
   double latest_imu_yaw_rate_variance_{0.0};
