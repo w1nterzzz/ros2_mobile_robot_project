@@ -50,6 +50,13 @@ if(BUILD_TESTING)
     include
   )
 
+  ament_add_gtest(test_planar_estimator
+    test/test_planar_estimator.cpp
+  )
+  target_include_directories(test_planar_estimator PRIVATE
+    include
+  )
+
   ament_lint_auto_find_test_dependencies()
 endif()
 
