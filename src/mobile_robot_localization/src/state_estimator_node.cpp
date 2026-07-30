@@ -48,6 +48,12 @@ public:
         &StateEstimatorNode::wheel_odom_callback,
         this,
         std::placeholders::_1));
+
+    odom_publisher_ =
+      create_publisher<nav_msgs::msg::Odometry>(
+      "/odom",
+      rclcpp::QoS(10));
+
     RCLCPP_INFO(
       get_logger(),
       "State estimator node started");
@@ -157,7 +163,8 @@ private:
     imu_subscription_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr
     wheel_odom_subscription_;
-
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr
+    odom_publisher_;
   PlanarEstimator estimator_;
   rclcpp::Time last_wheel_odom_stamp_{
     0,
