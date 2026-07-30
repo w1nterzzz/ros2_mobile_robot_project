@@ -17,6 +17,7 @@
 
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 
 namespace mobile_robot_localization
 {
@@ -27,6 +28,15 @@ public:
   StateEstimatorNode()
   : Node("state_estimator")
   {
+    imu_subscription_ =
+      create_subscription<sensor_msgs::msg::Imu>(
+      "/imu/data",
+      rclcpp::SensorDataQoS(),
+      std::bind(
+        &StateEstimatorNode::imu_callback,
+        this,
+        std::placeholders::_1));
+
     wheel_odom_subscription_ =
       create_subscription<nav_msgs::msg::Odometry>(
       "/wheel/odom",
@@ -45,7 +55,12 @@ private:
     const nav_msgs::msg::Odometry::SharedPtr)
   {
   }
-
+  void imu_callback(
+    const sensor_msgs::msg::Imu::SharedPtr)
+  {
+  }
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr
+    imu_subscription_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr
     wheel_odom_subscription_;
 };
