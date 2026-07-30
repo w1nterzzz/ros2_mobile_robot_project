@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <functional>
 #include <memory>
 
+#include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 namespace mobile_robot_localization
@@ -25,10 +27,27 @@ public:
   StateEstimatorNode()
   : Node("state_estimator")
   {
+    wheel_odom_subscription_ =
+      create_subscription<nav_msgs::msg::Odometry>(
+      "/wheel/odom",
+      rclcpp::SensorDataQoS(),
+      std::bind(
+        &StateEstimatorNode::wheel_odom_callback,
+        this,
+        std::placeholders::_1));
     RCLCPP_INFO(
       get_logger(),
       "State estimator node started");
   }
+
+private:
+  void wheel_odom_callback(
+    const nav_msgs::msg::Odometry::SharedPtr)
+  {
+  }
+
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr
+    wheel_odom_subscription_;
 };
 
 }  // namespace mobile_robot_localization

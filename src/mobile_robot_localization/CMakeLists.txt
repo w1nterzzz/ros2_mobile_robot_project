@@ -8,6 +8,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(nav_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -19,6 +20,7 @@ add_executable(state_estimator
 target_compile_features(state_estimator PUBLIC cxx_std_17)
 
 ament_target_dependencies(state_estimator
+  nav_msgs
   rclcpp
 )
 
