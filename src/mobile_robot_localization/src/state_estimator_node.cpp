@@ -23,6 +23,7 @@
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/utils.hpp"
 #include "tf2_ros/transform_broadcaster.h"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 
 namespace mobile_robot_localization
 {
@@ -65,6 +66,25 @@ public:
   }
 
 private:
+  void broadcast_estimated_transform(
+    const rclcpp::Time & stamp)
+  {
+    const auto & state = estimator_.state();
+
+    geometry_msgs::msg::TransformStamped transform;
+    transform.header.stamp = stamp;
+    transform.header.frame_id = "odom";
+    transform.child_frame_id = "base_footprint";
+
+    transform.transform.translation.x = state.x;
+    transform.transform.translation.y = state.y;
+    transform.transform.rotation.z =
+      std::sin(0.5 * state.yaw);
+    transform.transform.rotation.w =
+      std::cos(0.5 * state.yaw);
+
+    tf_broadcaster_->sendTransform(transform);
+  }
   static constexpr double kMaxTimeStep{1.0};
   void publish_estimated_odometry(
     const rclcpp::Time & stamp)
@@ -163,6 +183,7 @@ private:
       dt);
 
     publish_estimated_odometry(current_stamp);
+    broadcast_estimated_transform(current_stamp);
     const auto & state = estimator_.state();
 
     RCLCPP_INFO_ONCE(
