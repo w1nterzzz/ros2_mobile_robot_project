@@ -43,6 +43,13 @@ if(BUILD_TESTING)
     include
   )
 
+  ament_add_gtest(test_measurement_fusion
+    test/test_measurement_fusion.cpp
+  )
+  target_include_directories(test_measurement_fusion PRIVATE
+    include
+  )
+
   ament_lint_auto_find_test_dependencies()
 endif()
 
