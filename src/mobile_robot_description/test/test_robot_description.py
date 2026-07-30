@@ -87,6 +87,39 @@ def test_imu_bridge_is_configured(bridge_config):
     assert imu_bridge.get('frame_id') == 'base_link'
 
 
+def test_wheel_odometry_bridge_is_configured(bridge_config):
+    odometry_bridge = next(
+        (
+            entry
+            for entry in bridge_config
+            if entry.get('gz_topic_name') == (
+                '/model/mobile_robot/odometry'
+            )
+        ),
+        None,
+    )
+
+    assert odometry_bridge is not None
+    assert (
+        odometry_bridge['ros_topic_name']
+        == '/wheel/odom'
+    )
+    assert (
+        odometry_bridge['ros_type_name']
+        == 'nav_msgs/msg/Odometry'
+    )
+    assert odometry_bridge['gz_type_name'] == 'gz.msgs.Odometry'
+    assert odometry_bridge['direction'] == 'GZ_TO_ROS'
+    assert odometry_bridge['qos_profile'] == 'SENSOR_DATA'
+
+
+def test_gazebo_tf_is_not_bridged(bridge_config):
+    assert all(
+        entry.get('ros_topic_name') != '/tf'
+        for entry in bridge_config
+    )
+
+
 def test_required_links_and_joints_exist(robot):
     link_names = {
         link.attrib['name']

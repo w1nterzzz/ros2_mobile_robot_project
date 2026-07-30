@@ -33,6 +33,15 @@ def generate_launch_description():
         ),
     )
 
+    state_estimator = Node(
+        package='mobile_robot_localization',
+        executable='state_estimator',
+        name='state_estimator',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+        }],
+    )
     spawn_robot = Node(
         package='ros_gz_sim',
         executable='create',
@@ -62,5 +71,6 @@ def generate_launch_description():
     return LaunchDescription([
         display_launch,
         bridge_launch,
+        state_estimator,
         delayed_spawn,
     ])
