@@ -1,0 +1,18 @@
+state_estimator:
+  ros__parameters:
+    use_sim_time: true
+
+    imu_topic: "/imu/data"
+    wheel_odom_topic: "/wheel/odom"
+    odom_topic: "/odom"
+
+    odom_frame: "odom"
+    base_frame: "base_footprint"
+
+    max_time_step: 1.0
+
+    pose_x_variance: 0.05
+    pose_y_variance: 0.05
+    pose_yaw_variance: 0.02
+    linear_velocity_variance: 0.04
+    yaw_rate_variance: 0.01

@@ -49,6 +49,11 @@ install(
   DESTINATION include
 )
 
+install(
+  DIRECTORY config/
+  DESTINATION share/${PROJECT_NAME}/config
+)
+
 ament_export_include_directories(include)
 
 if(BUILD_TESTING)
