@@ -49,6 +49,32 @@ public:
 
     max_time_step_ = declare_parameter<double>(
       "max_time_step", 1.0);
+    pose_x_variance_ = declare_parameter<double>(
+      "pose_x_variance", 0.05);
+    pose_y_variance_ = declare_parameter<double>(
+      "pose_y_variance", 0.05);
+    pose_yaw_variance_ = declare_parameter<double>(
+      "pose_yaw_variance", 0.02);
+    linear_velocity_variance_ = declare_parameter<double>(
+      "linear_velocity_variance", 0.04);
+    yaw_rate_variance_ = declare_parameter<double>(
+      "yaw_rate_variance", 0.01);
+    const bool output_variances_are_valid =
+      std::isfinite(pose_x_variance_) &&
+      pose_x_variance_ > 0.0 &&
+      std::isfinite(pose_y_variance_) &&
+      pose_y_variance_ > 0.0 &&
+      std::isfinite(pose_yaw_variance_) &&
+      pose_yaw_variance_ > 0.0 &&
+      std::isfinite(linear_velocity_variance_) &&
+      linear_velocity_variance_ > 0.0 &&
+      std::isfinite(yaw_rate_variance_) &&
+      yaw_rate_variance_ > 0.0;
+
+    if (!output_variances_are_valid) {
+      throw std::invalid_argument(
+              "output variances must be finite and positive");
+    }
 
     if (
       !std::isfinite(max_time_step_) ||
@@ -109,7 +135,6 @@ private:
 
     tf_broadcaster_->sendTransform(transform);
   }
-  static constexpr double kMaxTimeStep{1.0};
   void publish_estimated_odometry(
     const rclcpp::Time & stamp)
   {
@@ -130,14 +155,20 @@ private:
     odom_message.twist.twist.linear.x = state.v;
     odom_message.twist.twist.angular.z = state.yaw_rate;
 
-    odom_message.pose.covariance[0] = 0.05;
-    odom_message.pose.covariance[7] = 0.05;
-    odom_message.pose.covariance[35] = 0.02;
-    odom_message.twist.covariance[0] = 0.04;
-    odom_message.twist.covariance[35] = 0.01;
+    odom_message.pose.covariance[0] =
+      pose_x_variance_;
+    odom_message.pose.covariance[7] =
+      pose_y_variance_;
+    odom_message.pose.covariance[35] =
+      pose_yaw_variance_;
+    odom_message.twist.covariance[0] =
+      linear_velocity_variance_;
+    odom_message.twist.covariance[35] =
+      yaw_rate_variance_;
 
     odom_publisher_->publish(odom_message);
   }
+
   void wheel_odom_callback(
     const nav_msgs::msg::Odometry::SharedPtr message)
   {
@@ -173,7 +204,7 @@ private:
     const double dt =
       (current_stamp - last_wheel_odom_stamp_).seconds();
 
-    if (dt <= 0.0 || dt > kMaxTimeStep) {
+    if (dt <= 0.0 || dt > max_time_step_) {
       RCLCPP_WARN(
         get_logger(),
         "Rejected wheel odometry timestamp: dt=%.6f s",
@@ -260,6 +291,11 @@ private:
   double latest_imu_yaw_rate_variance_{0.0};
   bool has_imu_measurement_{false};
   double max_time_step_{1.0};
+  double pose_x_variance_{0.05};
+  double pose_y_variance_{0.05};
+  double pose_yaw_variance_{0.02};
+  double linear_velocity_variance_{0.04};
+  double yaw_rate_variance_{0.01};
 };
 
 }  // namespace mobile_robot_localization
