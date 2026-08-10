@@ -1,9 +1,11 @@
 # Copyright 2026
 # Licensed under the Apache License, Version 2.0
 
+import importlib.util
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
+from launch.actions import DeclareLaunchArgument
 import pytest
 import xacro
 import yaml
@@ -14,6 +16,11 @@ XACRO_FILE = (
     / 'mobile_robot.urdf.xacro'
 )
 
+DISPLAY_LAUNCH_FILE = (
+    Path(__file__).resolve().parents[1]
+    / 'launch'
+    / 'display.launch.py'
+)
 
 BRIDGE_CONFIG_FILE = (
     Path(__file__).resolve().parents[1]
@@ -26,6 +33,30 @@ WORLD_FILE = (
     / 'worlds'
     / 'empty_no_shadows.sdf'
 )
+
+
+def test_display_launch_declares_robot_identity_arguments():
+    module_spec = importlib.util.spec_from_file_location(
+        'mobile_robot_display_launch',
+        DISPLAY_LAUNCH_FILE,
+    )
+    assert module_spec is not None
+    assert module_spec.loader is not None
+
+    launch_module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(launch_module)
+    launch_description = launch_module.generate_launch_description()
+
+    declared_arguments = {
+        action.name
+        for action in launch_description.entities
+        if isinstance(action, DeclareLaunchArgument)
+    }
+    assert {
+        'frame_prefix',
+        'robot_name',
+        'robot_namespace',
+    }.issubset(declared_arguments)
 
 
 @pytest.fixture(scope='module')
