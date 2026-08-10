@@ -35,6 +35,24 @@ def robot():
 
 
 @pytest.fixture(scope='module')
+def custom_named_robot():
+    document = xacro.process_file(
+        str(XACRO_FILE),
+        mappings={'robot_name': 'robot_1'},
+    )
+    return ET.fromstring(document.toxml())
+
+
+@pytest.fixture(scope='module')
+def prefixed_robot():
+    document = xacro.process_file(
+        str(XACRO_FILE),
+        mappings={'frame_prefix': 'robot_1/'},
+    )
+    return ET.fromstring(document.toxml())
+
+
+@pytest.fixture(scope='module')
 def world():
     document_text = WORLD_FILE.read_text(encoding='utf-8')
     sdf_start = document_text.index('<sdf version="')
@@ -46,6 +64,67 @@ def world():
 def bridge_config():
     with BRIDGE_CONFIG_FILE.open(encoding='utf-8') as stream:
         return yaml.safe_load(stream)
+
+
+def test_custom_robot_name_parameterizes_gazebo_topics(
+    custom_named_robot,
+):
+
+    imu_sensor = custom_named_robot.find(
+        './gazebo[@reference="base_link"]'
+        '/sensor[@name="imu_sensor"]'
+    )
+    assert imu_sensor is not None
+    assert (
+        imu_sensor.findtext('topic')
+        == '/model/robot_1/imu'
+    )
+
+    joint_state_plugin = custom_named_robot.find(
+        './gazebo/plugin'
+        '[@filename="gz-sim-joint-state-publisher-system"]'
+    )
+    assert joint_state_plugin is not None
+    assert (
+        joint_state_plugin.findtext('topic')
+        == '/model/robot_1/joint_state'
+    )
+
+    diff_drive = custom_named_robot.find(
+        './gazebo/plugin'
+        '[@filename="gz-sim-diff-drive-system"]'
+    )
+    assert diff_drive is not None
+    assert (
+        diff_drive.findtext('topic')
+        == '/model/robot_1/cmd_vel'
+    )
+    assert (
+        diff_drive.findtext('odom_topic')
+        == '/model/robot_1/odometry'
+    )
+    assert (
+        diff_drive.findtext('tf_topic')
+        == '/model/robot_1/tf'
+    )
+
+
+def test_frame_prefix_parameterizes_diff_drive_frames(
+    prefixed_robot,
+):
+    diff_drive = prefixed_robot.find(
+        './gazebo/plugin'
+        '[@filename="gz-sim-diff-drive-system"]'
+    )
+    assert diff_drive is not None
+    assert (
+        diff_drive.findtext('frame_id')
+        == 'robot_1/odom'
+    )
+    assert (
+        diff_drive.findtext('child_frame_id')
+        == 'robot_1/base_footprint'
+    )
 
 
 def test_world_loads_imu_system(world):
