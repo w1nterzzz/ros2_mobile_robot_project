@@ -24,7 +24,9 @@
   <exec_depend>tf2_msgs</exec_depend>
   <exec_depend>rosgraph_msgs</exec_depend>
   <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>mobile_robot_localization</exec_depend>
   <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-yaml</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

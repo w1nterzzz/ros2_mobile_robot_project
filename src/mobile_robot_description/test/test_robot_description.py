@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 import xacro
-
+import yaml
 
 XACRO_FILE = (
     Path(__file__).resolve().parents[1]
@@ -15,10 +15,109 @@ XACRO_FILE = (
 )
 
 
+BRIDGE_CONFIG_FILE = (
+    Path(__file__).resolve().parents[1]
+    / 'config'
+    / 'bridge.yaml'
+)
+
+WORLD_FILE = (
+    Path(__file__).resolve().parents[3]
+    / 'worlds'
+    / 'empty_no_shadows.sdf'
+)
+
+
 @pytest.fixture(scope='module')
 def robot():
     document = xacro.process_file(str(XACRO_FILE))
     return ET.fromstring(document.toxml())
+
+
+@pytest.fixture(scope='module')
+def world():
+    document_text = WORLD_FILE.read_text(encoding='utf-8')
+    sdf_start = document_text.index('<sdf version="')
+    document = ET.fromstring(document_text[sdf_start:])
+    return document.find('world')
+
+
+@pytest.fixture(scope='module')
+def bridge_config():
+    with BRIDGE_CONFIG_FILE.open(encoding='utf-8') as stream:
+        return yaml.safe_load(stream)
+
+
+def test_world_loads_imu_system(world):
+    assert world is not None
+
+    imu_system = world.find(
+        './plugin[@filename="gz-sim-imu-system"]'
+    )
+
+    assert imu_system is not None
+    assert (
+        imu_system.attrib['name']
+        == 'gz::sim::systems::Imu'
+    )
+
+
+def test_imu_bridge_is_configured(bridge_config):
+    imu_bridge = next(
+        (
+            entry
+            for entry in bridge_config
+            if entry.get('ros_topic_name') == '/imu/data'
+        ),
+        None,
+    )
+
+    assert imu_bridge is not None
+    assert (
+        imu_bridge['gz_topic_name']
+        == '/model/mobile_robot/imu'
+    )
+    assert (
+        imu_bridge['ros_type_name']
+        == 'sensor_msgs/msg/Imu'
+    )
+    assert imu_bridge['gz_type_name'] == 'gz.msgs.IMU'
+    assert imu_bridge['direction'] == 'GZ_TO_ROS'
+    assert imu_bridge['qos_profile'] == 'SENSOR_DATA'
+    assert imu_bridge.get('frame_id') == 'base_link'
+
+
+def test_wheel_odometry_bridge_is_configured(bridge_config):
+    odometry_bridge = next(
+        (
+            entry
+            for entry in bridge_config
+            if entry.get('gz_topic_name') == (
+                '/model/mobile_robot/odometry'
+            )
+        ),
+        None,
+    )
+
+    assert odometry_bridge is not None
+    assert (
+        odometry_bridge['ros_topic_name']
+        == '/wheel/odom'
+    )
+    assert (
+        odometry_bridge['ros_type_name']
+        == 'nav_msgs/msg/Odometry'
+    )
+    assert odometry_bridge['gz_type_name'] == 'gz.msgs.Odometry'
+    assert odometry_bridge['direction'] == 'GZ_TO_ROS'
+    assert odometry_bridge['qos_profile'] == 'SENSOR_DATA'
+
+
+def test_gazebo_tf_is_not_bridged(bridge_config):
+    assert all(
+        entry.get('ros_topic_name') != '/tf'
+        for entry in bridge_config
+    )
 
 
 def test_required_links_and_joints_exist(robot):
@@ -95,6 +194,69 @@ def test_physical_links_are_complete(robot, link_name):
     assert link.find('inertial') is not None
     assert float(link.find('inertial/mass').attrib['value']) > 0.0
     assert link.find('inertial/inertia') is not None
+
+
+def test_base_link_has_imu_sensor(robot):
+    imu_sensor = robot.find(
+        './gazebo[@reference="base_link"]'
+        '/sensor[@name="imu_sensor"]'
+    )
+
+    assert imu_sensor is not None
+    assert imu_sensor.attrib['type'] == 'imu'
+    assert imu_sensor.findtext('always_on') == 'true'
+    assert float(
+        imu_sensor.findtext('update_rate')
+    ) == pytest.approx(100.0)
+    assert imu_sensor.findtext('visualize') == 'false'
+    assert (
+        imu_sensor.findtext('topic')
+        == '/model/mobile_robot/imu'
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        'measurement_name',
+        'expected_stddev',
+        'expected_bias_mean',
+        'expected_bias_stddev',
+    ),
+    [
+        ('angular_velocity', 2.0e-4, 7.5e-6, 8.0e-7),
+        ('linear_acceleration', 1.7e-2, 0.1, 1.0e-3),
+    ],
+)
+def test_imu_noise_is_configured(
+    robot,
+    measurement_name,
+    expected_stddev,
+    expected_bias_mean,
+    expected_bias_stddev,
+):
+    imu_sensor = robot.find(
+        './gazebo[@reference="base_link"]'
+        '/sensor[@name="imu_sensor"]'
+    )
+    assert imu_sensor is not None
+
+    for axis in ('x', 'y', 'z'):
+        noise = imu_sensor.find(
+            f'imu/{measurement_name}/{axis}/noise'
+        )
+
+        assert noise is not None
+        assert noise.attrib['type'] == 'gaussian'
+        assert float(noise.findtext('mean')) == pytest.approx(0.0)
+        assert float(
+            noise.findtext('stddev')
+        ) == pytest.approx(expected_stddev)
+        assert float(
+            noise.findtext('bias_mean')
+        ) == pytest.approx(expected_bias_mean)
+        assert float(
+            noise.findtext('bias_stddev')
+        ) == pytest.approx(expected_bias_stddev)
 
 
 def test_gazebo_plugins_are_configured(robot):

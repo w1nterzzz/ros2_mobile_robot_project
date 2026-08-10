@@ -1,0 +1,32 @@
+// Copyright 2026 Yang Yuexiang
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef MOBILE_ROBOT_LOCALIZATION__PLANAR_STATE_HPP_
+#define MOBILE_ROBOT_LOCALIZATION__PLANAR_STATE_HPP_
+
+namespace mobile_robot_localization
+{
+
+struct PlanarState
+{
+  double x{0.0};
+  double y{0.0};
+  double yaw{0.0};
+  double v{0.0};
+  double yaw_rate{0.0};
+};
+
+}  // namespace mobile_robot_localization
+
+#endif  // MOBILE_ROBOT_LOCALIZATION__PLANAR_STATE_HPP_
