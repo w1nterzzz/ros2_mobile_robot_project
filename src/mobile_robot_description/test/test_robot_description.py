@@ -8,7 +8,6 @@ import xml.etree.ElementTree as ET
 from launch.actions import DeclareLaunchArgument
 import pytest
 import xacro
-import yaml
 
 XACRO_FILE = (
     Path(__file__).resolve().parents[1]
@@ -22,10 +21,10 @@ DISPLAY_LAUNCH_FILE = (
     / 'display.launch.py'
 )
 
-BRIDGE_CONFIG_FILE = (
+BRIDGE_LAUNCH_FILE = (
     Path(__file__).resolve().parents[1]
-    / 'config'
-    / 'bridge.yaml'
+    / 'launch'
+    / 'bridge.launch.py'
 )
 
 WORLD_FILE = (
@@ -53,6 +52,31 @@ def test_display_launch_declares_robot_identity_arguments():
         if isinstance(action, DeclareLaunchArgument)
     }
     assert {
+        'frame_prefix',
+        'robot_name',
+        'robot_namespace',
+    }.issubset(declared_arguments)
+
+
+def test_bridge_launch_declares_robot_identity_arguments():
+    module_spec = importlib.util.spec_from_file_location(
+        'mobile_robot_bridge_launch',
+        BRIDGE_LAUNCH_FILE,
+    )
+    assert module_spec is not None
+    assert module_spec.loader is not None
+
+    launch_module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(launch_module)
+    launch_description = launch_module.generate_launch_description()
+
+    declared_arguments = {
+        action.name
+        for action in launch_description.entities
+        if isinstance(action, DeclareLaunchArgument)
+    }
+    assert {
+        'bridge_clock',
         'frame_prefix',
         'robot_name',
         'robot_namespace',
@@ -89,12 +113,6 @@ def world():
     sdf_start = document_text.index('<sdf version="')
     document = ET.fromstring(document_text[sdf_start:])
     return document.find('world')
-
-
-@pytest.fixture(scope='module')
-def bridge_config():
-    with BRIDGE_CONFIG_FILE.open(encoding='utf-8') as stream:
-        return yaml.safe_load(stream)
 
 
 def test_custom_robot_name_parameterizes_gazebo_topics(
@@ -169,64 +187,6 @@ def test_world_loads_imu_system(world):
     assert (
         imu_system.attrib['name']
         == 'gz::sim::systems::Imu'
-    )
-
-
-def test_imu_bridge_is_configured(bridge_config):
-    imu_bridge = next(
-        (
-            entry
-            for entry in bridge_config
-            if entry.get('ros_topic_name') == '/imu/data'
-        ),
-        None,
-    )
-
-    assert imu_bridge is not None
-    assert (
-        imu_bridge['gz_topic_name']
-        == '/model/mobile_robot/imu'
-    )
-    assert (
-        imu_bridge['ros_type_name']
-        == 'sensor_msgs/msg/Imu'
-    )
-    assert imu_bridge['gz_type_name'] == 'gz.msgs.IMU'
-    assert imu_bridge['direction'] == 'GZ_TO_ROS'
-    assert imu_bridge['qos_profile'] == 'SENSOR_DATA'
-    assert imu_bridge.get('frame_id') == 'base_link'
-
-
-def test_wheel_odometry_bridge_is_configured(bridge_config):
-    odometry_bridge = next(
-        (
-            entry
-            for entry in bridge_config
-            if entry.get('gz_topic_name') == (
-                '/model/mobile_robot/odometry'
-            )
-        ),
-        None,
-    )
-
-    assert odometry_bridge is not None
-    assert (
-        odometry_bridge['ros_topic_name']
-        == '/wheel/odom'
-    )
-    assert (
-        odometry_bridge['ros_type_name']
-        == 'nav_msgs/msg/Odometry'
-    )
-    assert odometry_bridge['gz_type_name'] == 'gz.msgs.Odometry'
-    assert odometry_bridge['direction'] == 'GZ_TO_ROS'
-    assert odometry_bridge['qos_profile'] == 'SENSOR_DATA'
-
-
-def test_gazebo_tf_is_not_bridged(bridge_config):
-    assert all(
-        entry.get('ros_topic_name') != '/tf'
-        for entry in bridge_config
     )
 
 
@@ -414,4 +374,148 @@ def test_gazebo_plugins_are_configured(robot):
     assert (
         diff_drive.findtext('child_frame_id')
         == 'base_footprint'
+    )
+
+
+def test_robot_bridge_parameters_are_robot_specific():
+    module_spec = importlib.util.spec_from_file_location(
+        'mobile_robot_bridge_launch_parameters',
+        BRIDGE_LAUNCH_FILE,
+    )
+    assert module_spec is not None
+    assert module_spec.loader is not None
+
+    launch_module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(launch_module)
+
+    parameter_groups = launch_module._robot_bridge_parameters(
+        'robot_1',
+        'robot_1/',
+    )
+
+    parameters = {}
+    for parameter_group in parameter_groups:
+        parameters.update(parameter_group)
+
+    assert parameters['bridge_names'] == [
+        'joint_states',
+        'imu',
+        'cmd_vel',
+        'wheel_odom',
+    ]
+
+    assert (
+        parameters['bridges.joint_states.ros_topic_name']
+        == 'joint_states_raw'
+    )
+    assert (
+        parameters['bridges.joint_states.gz_topic_name']
+        == '/model/robot_1/joint_state'
+    )
+    assert (
+        parameters['bridges.imu.ros_topic_name']
+        == 'imu/data'
+    )
+    assert (
+        parameters['bridges.imu.gz_topic_name']
+        == '/model/robot_1/imu'
+    )
+    assert (
+        parameters['bridges.imu.frame_id']
+        == 'robot_1/base_link'
+    )
+    assert (
+        parameters['bridges.cmd_vel.ros_topic_name']
+        == 'cmd_vel'
+    )
+    assert (
+        parameters['bridges.cmd_vel.gz_topic_name']
+        == '/model/robot_1/cmd_vel'
+    )
+    assert (
+        parameters['bridges.wheel_odom.ros_topic_name']
+        == 'wheel/odom'
+    )
+    assert (
+        parameters['bridges.wheel_odom.gz_topic_name']
+        == '/model/robot_1/odometry'
+    )
+    expected_metadata = {
+        'bridges.joint_states.ros_type_name':
+            'sensor_msgs/msg/JointState',
+        'bridges.joint_states.gz_type_name':
+            'gz.msgs.Model',
+        'bridges.joint_states.direction':
+            'GZ_TO_ROS',
+        'bridges.imu.ros_type_name':
+            'sensor_msgs/msg/Imu',
+        'bridges.imu.gz_type_name':
+            'gz.msgs.IMU',
+        'bridges.imu.direction':
+            'GZ_TO_ROS',
+        'bridges.imu.qos_profile':
+            'SENSOR_DATA',
+        'bridges.cmd_vel.ros_type_name':
+            'geometry_msgs/msg/Twist',
+        'bridges.cmd_vel.gz_type_name':
+            'gz.msgs.Twist',
+        'bridges.cmd_vel.direction':
+            'ROS_TO_GZ',
+        'bridges.wheel_odom.ros_type_name':
+            'nav_msgs/msg/Odometry',
+        'bridges.wheel_odom.gz_type_name':
+            'gz.msgs.Odometry',
+        'bridges.wheel_odom.direction':
+            'GZ_TO_ROS',
+        'bridges.wheel_odom.qos_profile':
+            'SENSOR_DATA',
+    }
+
+    for parameter_name, expected_value in expected_metadata.items():
+        assert parameters[parameter_name] == expected_value
+
+    assert 'tf' not in parameters['bridge_names']
+
+
+def test_clock_bridge_parameters_are_global():
+    module_spec = importlib.util.spec_from_file_location(
+        'mobile_robot_clock_bridge_launch_parameters',
+        BRIDGE_LAUNCH_FILE,
+    )
+    assert module_spec is not None
+    assert module_spec.loader is not None
+
+    launch_module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(launch_module)
+
+    parameter_groups = launch_module._clock_bridge_parameters()
+
+    parameters = {}
+    for parameter_group in parameter_groups:
+        parameters.update(parameter_group)
+
+    assert parameters['bridge_names'] == ['clock']
+    assert (
+        parameters['bridges.clock.ros_topic_name']
+        == '/clock'
+    )
+    assert (
+        parameters['bridges.clock.gz_topic_name']
+        == '/clock'
+    )
+    assert (
+        parameters['bridges.clock.ros_type_name']
+        == 'rosgraph_msgs/msg/Clock'
+    )
+    assert (
+        parameters['bridges.clock.gz_type_name']
+        == 'gz.msgs.Clock'
+    )
+    assert (
+        parameters['bridges.clock.direction']
+        == 'GZ_TO_ROS'
+    )
+    assert (
+        parameters['bridges.clock.qos_profile']
+        == 'CLOCK'
     )
