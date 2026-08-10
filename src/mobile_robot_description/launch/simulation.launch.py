@@ -9,6 +9,10 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     package_share = FindPackageShare('mobile_robot_description')
 
+    localization_package_share = FindPackageShare(
+        'mobile_robot_localization'
+    )
+
     display_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -33,14 +37,17 @@ def generate_launch_description():
         ),
     )
 
-    state_estimator = Node(
-        package='mobile_robot_localization',
-        executable='state_estimator',
-        name='state_estimator',
-        output='screen',
-        parameters=[{
-            'use_sim_time': True,
-        }],
+    state_estimation_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                localization_package_share,
+                'launch',
+                'state_estimation.launch.py',
+            ])
+        ),
+        launch_arguments={
+            'use_sim_time': 'true',
+        }.items(),
     )
     spawn_robot = Node(
         package='ros_gz_sim',
@@ -71,6 +78,6 @@ def generate_launch_description():
     return LaunchDescription([
         display_launch,
         bridge_launch,
-        state_estimator,
+        state_estimation_launch,
         delayed_spawn,
     ])
