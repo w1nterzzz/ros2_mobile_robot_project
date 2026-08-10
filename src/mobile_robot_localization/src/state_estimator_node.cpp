@@ -255,6 +255,10 @@ private:
   void imu_callback(
     const sensor_msgs::msg::Imu::SharedPtr message)
   {
+    const rclcpp::Time imu_stamp(
+      message->header.stamp);
+    latest_imu_time_seconds_ =
+      imu_stamp.seconds();
     latest_imu_yaw_rate_ =
       message->angular_velocity.z;
     latest_imu_yaw_rate_variance_ =
@@ -263,8 +267,9 @@ private:
 
     RCLCPP_INFO_ONCE(
       get_logger(),
-      "First IMU measurement: yaw_rate=%.6f rad/s, "
-      "variance=%.6g",
+      "First IMU measurement: stamp=%.6f s, "
+      "yaw_rate=%.6f rad/s, variance=%.6g",
+      latest_imu_time_seconds_,
       latest_imu_yaw_rate_,
       latest_imu_yaw_rate_variance_);
   }
@@ -289,6 +294,7 @@ private:
 
   double latest_imu_yaw_rate_{0.0};
   double latest_imu_yaw_rate_variance_{0.0};
+  double latest_imu_time_seconds_{0.0};
   bool has_imu_measurement_{false};
   double max_time_step_{1.0};
   double pose_x_variance_{0.05};
