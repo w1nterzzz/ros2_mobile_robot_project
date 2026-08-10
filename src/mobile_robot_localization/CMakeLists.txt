@@ -72,6 +72,13 @@ if(BUILD_TESTING)
     include
   )
 
+  ament_add_gtest(test_measurement_freshness
+    test/test_measurement_freshness.cpp
+  )
+  target_include_directories(test_measurement_freshness PRIVATE
+    include
+  )
+
   ament_add_gtest(test_angle_utils
     test/test_angle_utils.cpp
   )
