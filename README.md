@@ -25,7 +25,7 @@
 - [x] Stage 3: ROS2 core concepts
 - [x] Stage 4: Differential-drive robot model and Gazebo integration
 - [x] Stage 5: Path tracking controller
-- [ ] Stage 6: Multi-sensor state estimation
+- [x] Stage 6: Multi-sensor state estimation
 - [ ] Stage 7: Safety, testing and engineering
 - [ ] Stage 8: Experiments and project presentation
 
@@ -161,6 +161,36 @@ ros2 launch mobile_robot_description simulation.launch.py
 - joint-state timestamp adapter
 - simulation-time configuration
 - delayed robot spawning
+- `state_estimator`，融合 `/wheel/odom` 和 `/imu/data`，并发布 `/odom` 与 `odom → base_footprint` TF
+
+## State Estimation Data Flow
+
+统一仿真会自动启动状态估计器，不需要另外启动第二个 `state_estimator` 节点。
+
+```text
+/wheel/odom + /imu/data
+  → state_estimator
+  → /odom
+  → path_tracking_controller
+  → /cmd_vel
+
+state_estimator
+  → TF: odom → base_footprint
+```
+
+状态估计器参数位于：
+
+```text
+src/mobile_robot_localization/config/state_estimator.yaml
+```
+
+其中 `max_time_step` 用于拒绝异常的轮式里程计时间步，`imu_timeout` 用于拒绝过期或未来时间戳的 IMU 测量。
+
+如需脱离完整仿真单独启动状态估计器，可以执行：
+
+```bash
+ros2 launch mobile_robot_localization state_estimation.launch.py
+```
 
 ## Run the Path Tracking Controller
 
@@ -182,7 +212,7 @@ ros2 launch mobile_robot_control path_tracking_controller.launch.py
 控制流程为：
 
 ```text
-/odom
+/odom（状态估计器融合输出）
   → 二维位姿提取
   → 当前航点选择
   → 距离和航向误差
@@ -207,7 +237,7 @@ src/mobile_robot_control/config/path_tracking_controller.yaml
 | `waypoint_acceptance_radius` | `0.15 m` | 航点到达半径 |
 | `odometry_timeout` | `0.5 s` | 里程计中断后的安全停止阈值 |
 
-Gazebo bridge以 `SENSOR_DATA` QoS发布 `/odom`。控制器使用 `rclcpp::SensorDataQoS()` 订阅，以匹配 Best Effort可靠性策略。
+Gazebo bridge 以 `SENSOR_DATA` QoS 将原始轮式里程计发布到 `/wheel/odom`。状态估计器使用 `rclcpp::SensorDataQoS()` 订阅原始里程计，并以 Reliable QoS 发布融合后的 `/odom`。控制器使用 `rclcpp::SensorDataQoS()` 订阅 `/odom`，两端 QoS 兼容。
 
 如果超过 `odometry_timeout` 没有收到新里程计，控制器会发布零速度；里程计恢复后继续跟踪。
 
@@ -356,6 +386,23 @@ The path-tracking tests verify:
 - distance and heading control calculations
 - velocity limits and translation suppression
 
+Stage 6 full-workspace baseline:
+
+```text
+5 packages finished
+228 tests, 0 errors, 0 failures, 25 skipped
+```
+
+The state-estimation tests verify:
+
+- planar state representation and angle normalization
+- state prediction and invalid time-step handling
+- wheel-odometry and IMU yaw-rate fusion
+- invalid measurement and variance fallback behavior
+- estimator initialization and update behavior
+- stale, future and non-finite IMU measurement rejection
+- simulation odometry routing and TF ownership
+
 ## Rendering Notes
 
 Gazebo Harmonic GUI is launched with the Ogre renderer, shadows disabled in the project world, and Mesa OpenGL 3.3 compatibility mode.
@@ -372,9 +419,9 @@ Headless Gazebo remains available for automated and non-visual tests.
 - Wheel slip can cause differences between Gazebo ground-truth pose and wheel odometry.
 - Gazebo may initially open with physics paused; click **Play** before sending motion commands.
 - The current controller follows parameterized point waypoints; continuous-curve tracking and obstacle avoidance are not yet implemented.
-- The Stage 5 evaluation uses wheel odometry as the controller state and does not yet compare against an independent ground-truth pose.
-- Sensor simulation and multi-sensor state estimation will be added in later stages.
+- The Stage 6 estimator uses a lightweight planar prediction and inverse-variance yaw-rate fusion model; it is not a full covariance-propagating EKF.
+- An independent Gazebo ground-truth accuracy benchmark is not yet included.
 
-## Next Step
+## Stage 6 State Estimation
 
-Stage 6 will add multi-sensor state estimation, including simulated sensor measurements, state-estimation models, coordinate-frame consistency, filter tuning and comparison with wheel odometry.
+Stage 6 provides simulated IMU measurements, raw wheel odometry on `/wheel/odom`, wheel-odometry and IMU yaw-rate fusion, fused `/odom` output, `odom → base_footprint` TF broadcasting, configurable output covariance and stale-IMU rejection.

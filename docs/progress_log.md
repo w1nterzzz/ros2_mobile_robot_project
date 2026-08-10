@@ -52,6 +52,28 @@ Stable interactive operation was verified using:
 
 Two consecutive interactive tests completed successfully, including simulation playback, camera movement, zooming and window resizing. Headless Gazebo remains available for automated tests.
 
+## 2026-08-10 — Stage 6 implementation and integration completed
+
+- Added simulated IMU measurements with configurable noise and ROS bridging.
+- Added the `mobile_robot_localization` package.
+- Implemented the planar state model `[x, y, yaw, v, yaw_rate]`.
+- Implemented angle normalization, state prediction and invalid time-step handling.
+- Implemented inverse-variance fusion of wheel and IMU yaw-rate measurements.
+- Added fallback behavior for invalid measurements and variances.
+- Implemented estimator initialization and fused state updates.
+- Routed raw Gazebo wheel odometry to `/wheel/odom`.
+- Published fused odometry on `/odom` with configurable non-zero covariance.
+- Published the `odom -> base_footprint` transform from the estimator.
+- Removed the conflicting Gazebo odometry TF bridge.
+- Added configurable topics, frames, time-step limits and output covariance.
+- Added IMU timestamp tracking and stale/future measurement rejection.
+- Added standalone configuration and launch files for the estimator.
+- Integrated the estimator into the unified simulation launch.
+- Verified the complete `/wheel/odom + /imu/data -> /odom -> controller -> /cmd_vel` chain.
+- Completed the default path with a final position error of approximately `0.1413 m`, within the `0.15 m` acceptance radius.
+- Verified that the controller publishes a zero velocity command after completion.
+- Passed the full workspace regression baseline: 5 packages, 228 tests, 0 errors, 0 failures and 25 skipped.
+
 ## Next step
 
-Begin Stage 3 and learn ROS2 nodes, topics, messages, services, parameters, launch files and colcon workspace structure.
+Complete the final Stage 6 repository verification and prepare the branch for integration.

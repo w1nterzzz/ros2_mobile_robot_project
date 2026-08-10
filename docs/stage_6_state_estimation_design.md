@@ -38,19 +38,19 @@ Yaw must be normalized to `[-pi, pi]`.
 
 ### Wheel odometry
 
-Planned topic: `/wheel/odom`
+Topic: `/wheel/odom`
 
 Message type: `nav_msgs/msg/Odometry`
 
-The current Gazebo bridge publishes raw wheel odometry on `/odom`. It will be renamed to `/wheel/odom` before the estimator publishes its output.
+The Gazebo bridge publishes raw wheel odometry on `/wheel/odom`. The estimator consumes this topic and reserves `/odom` for fused output.
 
 ### IMU
 
-Planned topic: `/imu/data`
+Topic: `/imu/data`
 
 Message type: `sensor_msgs/msg/Imu`
 
-The first fusion implementation will use Z-axis angular velocity.
+The estimator uses Z-axis angular velocity and fuses it with wheel yaw rate using inverse-variance weighting. Wheel odometry supplies forward linear velocity.
 
 ## Estimator Output
 
@@ -63,13 +63,7 @@ Frame fields:
 - `header.frame_id = odom`
 - `child_frame_id = base_footprint`
 
-The estimator will eventually be the only publisher of:
-
-`odom -> base_footprint`
-
-Before estimator TF publication is enabled, the Gazebo odometry TF bridge must stop publishing this transform.
-
-`robot_state_publisher` will continue publishing internal robot transforms.
+The estimator is the only publisher of the `odom -> base_footprint` transform. The Gazebo TF bridge is disabled, while `robot_state_publisher` continues publishing internal robot transforms.
 
 ## Time and Data Rules
 
@@ -82,14 +76,28 @@ Before estimator TF publication is enabled, the Gazebo odometry TF bridge must s
 - Do not publish before initialization from valid data.
 - Do not treat all-zero covariance as realistic uncertainty.
 
-## Verified Baseline
+## Implemented and Verified Architecture
 
-The existing system has:
+The implemented system has:
 
-- `/odom` published by `ros_gz_bridge`;
-- `BEST_EFFORT` odometry QoS;
+- raw wheel odometry on `/wheel/odom` at approximately 50 Hz;
+- simulated IMU measurements on `/imu/data` at approximately 100 Hz;
+- `BEST_EFFORT` sensor-input QoS through `rclcpp::SensorDataQoS()`;
+- fused odometry on `/odom` at approximately 50 Hz;
+- `RELIABLE` fused-odometry publication;
 - `frame_id = odom`;
 - `child_frame_id = base_footprint`;
-- an odometry rate of approximately 50 Hz;
-- a working `odom -> base_footprint` transform;
-- all-zero pose and twist covariance.
+- configurable non-zero pose and twist covariance;
+- `odom -> base_footprint` TF published only by the estimator;
+- invalid time-step and non-finite measurement rejection;
+- stale and future IMU measurement rejection;
+- configuration in `config/state_estimator.yaml`;
+- independent and unified-simulation launch support.
+
+The full Stage 6 workspace baseline is:
+
+- 5 packages;
+- 228 tests;
+- 0 errors;
+- 0 failures;
+- 25 skipped.
