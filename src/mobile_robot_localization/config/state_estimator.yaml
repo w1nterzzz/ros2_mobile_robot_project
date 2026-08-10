@@ -10,6 +10,7 @@ state_estimator:
     base_frame: "base_footprint"
 
     max_time_step: 1.0
+    imu_timeout: 0.2
 
     pose_x_variance: 0.05
     pose_y_variance: 0.05

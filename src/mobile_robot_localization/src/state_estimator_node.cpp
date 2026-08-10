@@ -19,6 +19,7 @@
 #include <stdexcept>
 
 #include "mobile_robot_localization/planar_estimator.hpp"
+#include "mobile_robot_localization/measurement_freshness.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
@@ -49,6 +50,8 @@ public:
 
     max_time_step_ = declare_parameter<double>(
       "max_time_step", 1.0);
+    imu_timeout_ = declare_parameter<double>(
+      "imu_timeout", 0.2);
     pose_x_variance_ = declare_parameter<double>(
       "pose_x_variance", 0.05);
     pose_y_variance_ = declare_parameter<double>(
@@ -82,6 +85,14 @@ public:
     {
       throw std::invalid_argument(
               "max_time_step must be finite and positive");
+    }
+
+    if (
+      !std::isfinite(imu_timeout_) ||
+      imu_timeout_ <= 0.0)
+    {
+      throw std::invalid_argument(
+              "imu_timeout must be finite and positive");
     }
 
     tf_broadcaster_ =
@@ -221,6 +232,28 @@ private:
       return;
     }
 
+    const double current_time_seconds =
+      current_stamp.seconds();
+    const double imu_age =
+      current_time_seconds - latest_imu_time_seconds_;
+
+    if (
+      !is_measurement_fresh(
+        latest_imu_time_seconds_,
+        current_time_seconds,
+        imu_timeout_))
+    {
+      RCLCPP_WARN_THROTTLE(
+        get_logger(),
+        *get_clock(),
+        2000,
+        "Skipping fused update: IMU measurement is not fresh "
+        "(age=%.6f s, timeout=%.6f s)",
+        imu_age,
+        imu_timeout_);
+      return;
+    }
+
     const double wheel_linear_velocity =
       message->twist.twist.linear.x;
     const double wheel_yaw_rate =
@@ -297,6 +330,7 @@ private:
   double latest_imu_time_seconds_{0.0};
   bool has_imu_measurement_{false};
   double max_time_step_{1.0};
+  double imu_timeout_{0.2};
   double pose_x_variance_{0.05};
   double pose_y_variance_{0.05};
   double pose_yaw_variance_{0.02};
