@@ -519,3 +519,83 @@ def test_clock_bridge_parameters_are_global():
         parameters['bridges.clock.qos_profile']
         == 'CLOCK'
     )
+
+
+def test_simulation_launch_declares_multi_robot_arguments():
+    simulation_launch_file = (
+        BRIDGE_LAUNCH_FILE.parent
+        / 'simulation.launch.py'
+    )
+    module_spec = importlib.util.spec_from_file_location(
+        'mobile_robot_simulation_launch',
+        simulation_launch_file,
+    )
+    assert module_spec is not None
+    assert module_spec.loader is not None
+
+    launch_module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(launch_module)
+    launch_description = launch_module.generate_launch_description()
+    entity_identifiers = [
+        id(action)
+        for action in launch_description.entities
+    ]
+    assert len(entity_identifiers) == len(set(entity_identifiers))
+
+    declared_arguments = {
+        action.name
+        for action in launch_description.entities
+        if isinstance(action, DeclareLaunchArgument)
+    }
+
+    assert {
+        'bridge_clock',
+        'frame_prefix',
+        'robot_name',
+        'robot_namespace',
+        'spawn_x',
+        'spawn_y',
+        'spawn_yaw',
+        'spawn_z',
+    }.issubset(declared_arguments)
+
+
+def test_spawn_arguments_include_robot_identity_and_pose():
+    simulation_launch_file = (
+        BRIDGE_LAUNCH_FILE.parent
+        / 'simulation.launch.py'
+    )
+    module_spec = importlib.util.spec_from_file_location(
+        'mobile_robot_simulation_spawn_arguments',
+        simulation_launch_file,
+    )
+    assert module_spec is not None
+    assert module_spec.loader is not None
+
+    launch_module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(launch_module)
+
+    spawn_arguments = launch_module._spawn_robot_arguments(
+        'robot_1',
+        '1.0',
+        '-2.0',
+        '0.05',
+        '0.75',
+    )
+
+    assert spawn_arguments == [
+        '-world',
+        'empty',
+        '-topic',
+        'robot_description',
+        '-name',
+        'robot_1',
+        '-x',
+        '1.0',
+        '-y',
+        '-2.0',
+        '-z',
+        '0.05',
+        '-Y',
+        '0.75',
+    ]

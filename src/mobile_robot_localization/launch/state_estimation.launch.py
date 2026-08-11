@@ -22,6 +22,8 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     config_file = LaunchConfiguration('config_file')
+    frame_prefix = LaunchConfiguration('frame_prefix')
+    robot_namespace = LaunchConfiguration('robot_namespace')
     use_sim_time = LaunchConfiguration('use_sim_time')
 
     declare_config_file = DeclareLaunchArgument(
@@ -34,6 +36,18 @@ def generate_launch_description():
         description='Path to the state estimator parameter file',
     )
 
+    declare_frame_prefix = DeclareLaunchArgument(
+        'frame_prefix',
+        default_value='',
+        description='Prefix applied to estimator TF frame identifiers',
+    )
+
+    declare_robot_namespace = DeclareLaunchArgument(
+        'robot_namespace',
+        default_value='',
+        description='ROS namespace for this robot',
+    )
+
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
         default_value='true',
@@ -44,10 +58,19 @@ def generate_launch_description():
         package='mobile_robot_localization',
         executable='state_estimator',
         name='state_estimator',
+        namespace=robot_namespace,
         output='screen',
         parameters=[
             config_file,
             {
+                'base_frame': ParameterValue(
+                    [frame_prefix, 'base_footprint'],
+                    value_type=str,
+                ),
+                'odom_frame': ParameterValue(
+                    [frame_prefix, 'odom'],
+                    value_type=str,
+                ),
                 'use_sim_time': ParameterValue(
                     use_sim_time,
                     value_type=bool,
@@ -58,6 +81,8 @@ def generate_launch_description():
 
     return LaunchDescription([
         declare_config_file,
+        declare_frame_prefix,
+        declare_robot_namespace,
         declare_use_sim_time,
         state_estimator,
     ])
