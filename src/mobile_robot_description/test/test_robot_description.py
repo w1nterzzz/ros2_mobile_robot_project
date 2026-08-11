@@ -599,3 +599,44 @@ def test_spawn_arguments_include_robot_identity_and_pose():
         '-Y',
         '0.75',
     ]
+
+
+def test_multi_robot_simulation_launch_is_available():
+    multi_robot_launch_file = (
+        BRIDGE_LAUNCH_FILE.parent
+        / 'multi_robot_simulation.launch.py'
+    )
+    assert multi_robot_launch_file.is_file()
+
+    module_spec = importlib.util.spec_from_file_location(
+        'mobile_robot_multi_robot_simulation_launch',
+        multi_robot_launch_file,
+    )
+    assert module_spec is not None
+    assert module_spec.loader is not None
+
+    launch_module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(launch_module)
+    launch_description = launch_module.generate_launch_description()
+
+    entity_identifiers = [
+        id(action)
+        for action in launch_description.entities
+    ]
+    assert len(entity_identifiers) == len(set(entity_identifiers))
+
+    declared_arguments = {
+        action.name
+        for action in launch_description.entities
+        if isinstance(action, DeclareLaunchArgument)
+    }
+
+    assert {
+        'robot_1_spawn_x',
+        'robot_1_spawn_y',
+        'robot_1_spawn_yaw',
+        'robot_2_spawn_x',
+        'robot_2_spawn_y',
+        'robot_2_spawn_yaw',
+        'spawn_z',
+    }.issubset(declared_arguments)
