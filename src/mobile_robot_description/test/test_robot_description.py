@@ -426,7 +426,7 @@ def test_robot_bridge_parameters_are_robot_specific():
     )
     assert (
         parameters['bridges.cmd_vel.ros_topic_name']
-        == 'cmd_vel'
+        == 'actuator/cmd_vel'
     )
     assert (
         parameters['bridges.cmd_vel.gz_topic_name']
@@ -640,3 +640,22 @@ def test_multi_robot_simulation_launch_is_available():
         'robot_2_spawn_yaw',
         'spawn_z',
     }.issubset(declared_arguments)
+
+
+def test_simulation_launch_includes_cmd_vel_safety_once():
+    simulation_launch_file = (
+        BRIDGE_LAUNCH_FILE.parent
+        / 'simulation.launch.py'
+    )
+
+    source_text = simulation_launch_file.read_text(
+        encoding='utf-8'
+    )
+
+    assert source_text.count(
+        "'cmd_vel_safety.launch.py'"
+    ) == 1
+
+    assert source_text.count(
+        'cmd_vel_safety_launch,'
+    ) == 1

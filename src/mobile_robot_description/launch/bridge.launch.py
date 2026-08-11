@@ -65,7 +65,7 @@ def _robot_bridge_parameters(robot_name, frame_prefix):
         },
         {
             'bridges.cmd_vel.ros_topic_name':
-                'cmd_vel',
+            'actuator/cmd_vel',
         },
         {
             'bridges.cmd_vel.gz_topic_name':

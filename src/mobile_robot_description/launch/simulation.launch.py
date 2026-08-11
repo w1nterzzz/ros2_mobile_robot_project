@@ -44,8 +44,13 @@ def generate_launch_description():
     spawn_y = LaunchConfiguration('spawn_y')
     spawn_z = LaunchConfiguration('spawn_z')
     spawn_yaw = LaunchConfiguration('spawn_yaw')
-    package_share = FindPackageShare('mobile_robot_description')
 
+    description_package_share = FindPackageShare(
+        'mobile_robot_description'
+    )
+    control_package_share = FindPackageShare(
+        'mobile_robot_control'
+    )
     localization_package_share = FindPackageShare(
         'mobile_robot_localization'
     )
@@ -53,7 +58,7 @@ def generate_launch_description():
     display_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
-                package_share,
+                description_package_share,
                 'launch',
                 'display.launch.py',
             ])
@@ -70,7 +75,7 @@ def generate_launch_description():
     bridge_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
-                package_share,
+                description_package_share,
                 'launch',
                 'bridge.launch.py',
             ])
@@ -79,6 +84,19 @@ def generate_launch_description():
             'bridge_clock': bridge_clock,
             'frame_prefix': frame_prefix,
             'robot_name': robot_name,
+            'robot_namespace': robot_namespace,
+        }.items(),
+    )
+
+    cmd_vel_safety_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                control_package_share,
+                'launch',
+                'cmd_vel_safety.launch.py',
+            ])
+        ),
+        launch_arguments={
             'robot_namespace': robot_namespace,
         }.items(),
     )
@@ -97,6 +115,7 @@ def generate_launch_description():
             'use_sim_time': 'true',
         }.items(),
     )
+
     spawn_robot = Node(
         namespace=robot_namespace,
         package='ros_gz_sim',
@@ -116,6 +135,7 @@ def generate_launch_description():
         period=3.0,
         actions=[spawn_robot],
     )
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'bridge_clock',
@@ -167,6 +187,7 @@ def generate_launch_description():
 
         display_launch,
         bridge_launch,
+        cmd_vel_safety_launch,
         state_estimation_launch,
         delayed_spawn,
     ])

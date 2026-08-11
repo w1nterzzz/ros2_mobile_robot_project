@@ -63,6 +63,22 @@ ament_target_dependencies(path_tracking_controller
   tf2_geometry_msgs
 )
 
+add_executable(cmd_vel_safety
+  src/cmd_vel_safety_node.cpp
+)
+
+target_compile_features(cmd_vel_safety PUBLIC cxx_std_17)
+
+target_include_directories(cmd_vel_safety
+  PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+ament_target_dependencies(cmd_vel_safety
+  geometry_msgs
+  rclcpp
+)
+
 install(
   TARGETS angle_utils control_law
   EXPORT export_${PROJECT_NAME}
@@ -89,7 +105,14 @@ install(
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_pytest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
+
+  ament_add_pytest_test(
+    test_path_tracking_controller_launch
+    test/test_path_tracking_controller_launch.py
+  )
+
   ament_lint_auto_find_test_dependencies()
 
   ament_add_gtest(test_angle_utils
@@ -119,6 +142,15 @@ if(BUILD_TESTING)
     test/test_control_law.cpp
   )
   target_link_libraries(test_control_law control_law)
+
+  ament_add_gtest(test_command_watchdog
+    test/test_command_watchdog.cpp
+  )
+  target_include_directories(test_command_watchdog
+    PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  )
+  target_compile_features(test_command_watchdog PUBLIC cxx_std_17)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
