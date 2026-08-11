@@ -38,11 +38,11 @@ public:
   : Node("state_estimator")
   {
     imu_topic_ = declare_parameter<std::string>(
-      "imu_topic", "/imu/data");
+      "imu_topic", "imu/data");
     wheel_odom_topic_ = declare_parameter<std::string>(
-      "wheel_odom_topic", "/wheel/odom");
+      "wheel_odom_topic", "wheel/odom");
     odom_topic_ = declare_parameter<std::string>(
-      "odom_topic", "/odom");
+      "odom_topic", "odom");
     odom_frame_ = declare_parameter<std::string>(
       "odom_frame", "odom");
     base_frame_ = declare_parameter<std::string>(

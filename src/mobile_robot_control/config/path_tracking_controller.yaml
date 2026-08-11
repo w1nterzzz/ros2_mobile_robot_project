@@ -2,6 +2,9 @@ path_tracking_controller:
   ros__parameters:
     use_sim_time: true
 
+    odom_topic: "odom"
+    cmd_vel_topic: "cmd_vel"
+
     linear_gain: 0.8
     angular_gain: 2.0
 

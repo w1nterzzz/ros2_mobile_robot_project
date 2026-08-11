@@ -13,6 +13,9 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
+    frame_prefix = LaunchConfiguration('frame_prefix')
+    robot_name = LaunchConfiguration('robot_name')
+    robot_namespace = LaunchConfiguration('robot_namespace')
     use_joint_state_publisher = LaunchConfiguration(
         'use_joint_state_publisher'
     )
@@ -29,11 +32,35 @@ def generate_launch_description():
             FindExecutable(name='xacro'),
             ' ',
             xacro_file,
+            ' ',
+            'robot_name:=',
+            robot_name,
+            ' ',
+            'frame_prefix:=',
+            frame_prefix,
         ]),
         value_type=str,
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'frame_prefix',
+            default_value='',
+            description='Prefix applied to this robot TF frame identifiers',
+        ),
+
+        DeclareLaunchArgument(
+            'robot_name',
+            default_value='mobile_robot',
+            description='Unique Gazebo model name',
+        ),
+
+        DeclareLaunchArgument(
+            'robot_namespace',
+            default_value='',
+            description='ROS namespace for this robot',
+        ),
+
         DeclareLaunchArgument(
             'use_joint_state_publisher',
             default_value='true',
@@ -53,8 +80,13 @@ def generate_launch_description():
             package='robot_state_publisher',
             executable='robot_state_publisher',
             name='robot_state_publisher',
+            namespace=robot_namespace,
             output='screen',
             parameters=[{
+                'frame_prefix': ParameterValue(
+                    frame_prefix,
+                    value_type=str,
+                ),
                 'robot_description': robot_description,
                 'use_sim_time': ParameterValue(
                     use_sim_time,
@@ -67,6 +99,7 @@ def generate_launch_description():
             package='joint_state_publisher',
             executable='joint_state_publisher',
             name='joint_state_publisher',
+            namespace=robot_namespace,
             output='screen',
             condition=IfCondition(use_joint_state_publisher),
             parameters=[{

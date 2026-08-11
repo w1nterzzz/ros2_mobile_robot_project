@@ -39,12 +39,22 @@ public:
   {
     declare_and_validate_parameters();
 
+    const auto cmd_vel_topic =
+      declare_parameter<std::string>("cmd_vel_topic", "cmd_vel");
+    const auto odom_topic =
+      declare_parameter<std::string>("odom_topic", "odom");
+
+    if (cmd_vel_topic.empty() || odom_topic.empty()) {
+      throw std::invalid_argument(
+              "cmd_vel_topic and odom_topic must not be empty");
+    }
+
     cmd_vel_publisher_ =
-      create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+      create_publisher<geometry_msgs::msg::Twist>(cmd_vel_topic, 10);
 
     odom_subscription_ =
       create_subscription<nav_msgs::msg::Odometry>(
-      "/odom",
+      odom_topic,
       rclcpp::SensorDataQoS(),
       std::bind(
         &PathTrackingControllerNode::odom_callback,

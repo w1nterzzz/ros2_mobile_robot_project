@@ -74,6 +74,45 @@ Two consecutive interactive tests completed successfully, including simulation p
 - Verified that the controller publishes a zero velocity command after completion.
 - Passed the full workspace regression baseline: 5 packages, 228 tests, 0 errors, 0 failures and 25 skipped.
 
+## 2026-08-11 — Stage 7 multi-robot foundation completed
+
+- Created the Stage 7 multi-robot architecture and acceptance design.
+- Parameterized the Xacro robot name and Gazebo model topics.
+- Added configurable TF frame prefixes while preserving default single-robot frame names.
+- Parameterized display, bridge and simulation launch files.
+- Replaced the fixed bridge YAML with per-robot dynamic bridge parameters.
+- Added independent ROS namespaces for robot description, sensors, odometry and commands.
+- Added independent state-estimator namespaces and prefixed TF frames.
+- Added relative estimator and controller topic parameters.
+- Added the dual-robot simulation launch for `robot_1` and `robot_2`.
+- Kept one shared `/clock` bridge while isolating robot-specific topics.
+- Verified independent IMU, wheel odometry and fused odometry for both robots.
+- Verified unique TF frame chains for both robots.
+- Verified that commands for one robot do not move the other robot.
+- Added a pure C++ command-watchdog implementation and unit tests.
+- Added the C++ `cmd_vel_safety` ROS 2 node.
+- Routed requested `cmd_vel` through the safety node to `actuator/cmd_vel`.
+- Changed the Gazebo bridge to accept only safety-filtered actuator commands.
+- Added command timeout, missing-publisher and duplicate-publisher safety behavior.
+- Verified that one robot's timeout does not stop another robot.
+- Verified automatic zero output after controller shutdown.
+- Added the reusable headless Gazebo server launcher.
+- Added the automated headless dual-robot smoke test.
+- Fixed smoke-test cleanup by placing Gazebo and ROS launch in independent process groups.
+- Verified that the smoke test leaves no ROS or Gazebo processes behind.
+- Re-ran the original single-robot path with no namespace arguments.
+- Completed the default path at approximately `(1.05190, 0.87878) m`.
+- Measured a final single-robot position error of approximately `0.1319 m`, within the `0.15 m` acceptance radius.
+- Verified final zero actuator velocity.
+- Passed the complete Stage 7 workspace checkpoint: 5 packages, 267 tests, 0 errors, 0 failures and 28 skipped.
+
 ## Next step
 
-Complete the final Stage 6 repository verification and prepare the branch for integration.
+Complete the Stage 7 documentation commit, push the branch and merge its pull request.
+
+After Stage 7 integration, begin Stage 8:
+
+- establish the shared C++ mathematics library;
+- define reusable multi-agent experiment configuration;
+- define trajectory logging and evaluation outputs;
+- prepare the common numerical and Gazebo experiment framework used by both papers.
