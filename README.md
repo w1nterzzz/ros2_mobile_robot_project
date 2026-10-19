@@ -27,12 +27,6 @@
 - [x] Stage 5: Path tracking controller
 - [x] Stage 6: Multi-sensor state estimation
 - [x] Stage 7: Multi-robot foundation and velocity safety
-- [ ] Stage 8: Shared C++ mathematics and experiment framework
-- [ ] Stage 9: Distributed SE(d) formation-control numerical reproduction
-- [ ] Stage 10: Distributed SE(2) formation control in Gazebo
-- [ ] Stage 11: Cooperative and individual control numerical reproduction
-- [ ] Stage 12: Multi-agent cooperative-control experiments in Gazebo
-- [ ] Stage 13: Unified evaluation and project presentation
 
 ## Implemented Packages
 
@@ -843,5 +837,3 @@ Stage 7提供：
 - 重复发布者检测；
 - 超时与发布者退出归零；
 - 无界面 Gazebo自动冒烟测试。
-
-该基础将在 Stage 8之后复用于两篇多智能体控制论文的数值实验和 Gazebo实验。
